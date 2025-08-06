@@ -1,0 +1,43 @@
+{
+  "name": "clipboard-sync",
+  "version": "1.0.0",
+  "description": "跨平台剪贴板同步工具",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js",
+    "build": "npx webpack --config client/webpack.config.js"
+  },
+  "keywords": [
+    "clipboard",
+    "sync",
+    "cross-platform"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "bcrypt": "^5.1.0",
+    "body-parser": "^1.20.2",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.1",
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.7.2",
+    "socket.io-client": "^4.8.1",
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "@element-plus/icons-vue": "^2.1.0",
+    "@vue/compiler-sfc": "^3.3.4",
+    "concurrently": "^8.2.0",
+    "css-loader": "^6.8.1",
+    "element-plus": "^2.3.8",
+    "nodemon": "^3.0.1",
+    "vue": "^3.3.4",
+    "vue-loader": "^17.2.2",
+    "vue-style-loader": "^4.1.3",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1"
+  }
+}

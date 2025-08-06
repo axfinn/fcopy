@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "2001:3000"
+    env_file:
+      - .env
+    environment:
+      - CLIPBOARD_API_KEY=${CLIPBOARD_API_KEY}
+      - NODE_ENV=production
+    volumes:
+      - ./uploads:/app/uploads
+      - ./clipboard.db:/app/clipboard.db
+    restart: unless-stopped
+    networks:
+      - clipboard-network
+
+networks:
+  clipboard-network:
+    driver: bridge

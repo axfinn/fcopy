@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    ports:
+      - "2001:3000"
+    env_file:
+      - .env
+    environment:
+      - CLIPBOARD_API_KEY=${CLIPBOARD_API_KEY}
+      - NODE_ENV=production
+    volumes:
+      - clipboard_data:/app/uploads
+      - clipboard_db:/app
+    restart: unless-stopped
+    networks:
+      - clipboard-network
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  clipboard_data:
+  clipboard_db:
+
+networks:
+  clipboard-network:
+    driver: bridge

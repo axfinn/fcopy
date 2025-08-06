@@ -1,2 +1,6 @@
 prompts/*
 !important
+node_modules/
+dist/
+*.db
+uploads/
