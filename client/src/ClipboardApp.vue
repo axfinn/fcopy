@@ -11,8 +11,10 @@
               type="danger" 
               size="small" 
               @click="logout" 
+              @mousedown="handleLogoutMouseDown"
               round
               class="logout-button"
+              id="logout-button"
             >
               <i class="el-icon-switch-button"></i> 清除密钥
             </el-button>
@@ -531,6 +533,7 @@ export default {
     
     // 登出
     logout() {
+      console.log('登出按钮被点击');
       this.isAuthenticated = false;
       this.apiKey = '';
       this.activeTab = 'add';
@@ -559,6 +562,13 @@ export default {
       this.newTextContent = '';
       this.previewFile = {};
       this.previewFileContent = '';
+      
+      console.log('登出完成');
+    },
+    
+    // 调试方法：检查按钮是否被按下
+    handleLogoutMouseDown() {
+      console.log('登出按钮被按下');
     },
     
     // 获取剪贴板历史记录
@@ -1686,6 +1696,29 @@ export default {
   
   .el-card__body {
     padding: 15px;
+  }
+}
+
+@media (min-width: 769px) {
+  .logout-button {
+    padding: 10px 20px !important;
+    font-size: 13px !important;
+    min-width: 100px !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2) !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    z-index: 9999 !important;
+    position: relative !important;
+  }
+  
+  .auth-info {
+    position: relative;
+    z-index: 9998;
+  }
+  
+  .app-header {
+    position: relative !important;
+    z-index: 9997 !important;
   }
 }
 
