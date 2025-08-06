@@ -52,6 +52,31 @@
             </div>
           </el-card>
         </div>
+        <!-- GitHub项目信息 -->
+        <div class="github-info card" v-if="githubInfo">
+          <div class="card-header">
+            <h3><i class="el-icon-star-off"></i> GitHub 项目信息</h3>
+          </div>
+          <div class="github-stats">
+            <span class="stat-item">
+              <i class="el-icon-collection"></i> {{ githubInfo.stars }} Stars
+            </span>
+            <span class="stat-item">
+              <i class="el-icon-share"></i> {{ githubInfo.forks }} Forks
+            </span>
+            <span class="stat-item">
+              <i class="el-icon-info"></i> {{ githubInfo.version }}
+            </span>
+          </div>
+          <el-button 
+            type="default" 
+            @click="openGithubRepo"
+            round
+            size="small"
+          >
+            <i class="el-icon-link"></i> 查看 GitHub 仓库
+          </el-button>
+        </div>
         
         <!-- 主功能界面 -->
         <div v-else>
@@ -1188,7 +1213,7 @@ export default {
   height: auto !important;
   line-height: normal !important;
   position: relative !important;
-  z-index: 1000 !important;
+  z-index: 9997 !important;
 }
 
 .header-content {
@@ -1231,7 +1256,7 @@ export default {
   align-items: center;
   margin: 10px 0;
   position: relative;
-  z-index: 1001;
+  z-index: 9998;
 }
 
 .header-content .auth-info .el-button {
@@ -1247,7 +1272,7 @@ export default {
 .logout-button {
   cursor: pointer !important;
   pointer-events: auto !important;
-  z-index: 1002 !important;
+  z-index: 9999 !important;
   position: relative !important;
   touch-action: manipulation;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
