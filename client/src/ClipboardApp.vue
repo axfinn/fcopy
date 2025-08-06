@@ -559,6 +559,23 @@ export default {
       this.clipboardItems = [];
       this.accessLogs = [];
       this.rateLimits = [];
+      this.users = [];
+      this.isAdmin = false;
+      
+      // 清理图表
+      if (this.accessChart) {
+        this.accessChart.destroy();
+        this.accessChart = null;
+      }
+      
+      // 重置表单数据
+      this.newUser = {
+        username: '',
+        apiKey: ''
+      };
+      this.newTextContent = '';
+      this.previewFile = {};
+      this.previewFileContent = '';
     },
     
     // 获取剪贴板历史记录
@@ -1187,13 +1204,15 @@ export default {
   justify-content: space-between;
   align-items: center;
   height: 100%;
+  flex-wrap: wrap;
 }
 
 .header-content h1 {
-  margin: 0;
+  margin: 10px 0;
   color: white;
   font-size: 1.5rem;
   text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  flex: 1;
 }
 
 .header-content h1 i {
@@ -1203,6 +1222,7 @@ export default {
 .auth-info {
   display: flex;
   align-items: center;
+  margin: 10px 0;
 }
 
 .header-content .auth-info .el-button {
@@ -1591,9 +1611,15 @@ export default {
     gap: 10px;
   }
   
+  .header-content h1 {
+    font-size: 1.3rem;
+    margin: 15px 0 5px 0;
+  }
+  
   .auth-info {
     display: flex;
     justify-content: center;
+    margin: 5px 0 15px 0;
   }
   
   .card-header h3 {
