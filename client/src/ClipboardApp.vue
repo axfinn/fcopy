@@ -1190,13 +1190,10 @@ export default {
 }
 
 .el-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  border-radius: 10px;
-  margin-bottom: 20px;
-  padding: 0 20px;
+  background-color: transparent !important;
+  padding: 0;
   height: auto !important;
-  min-height: 60px;
+  line-height: normal !important;
 }
 
 .header-content {
@@ -1206,7 +1203,8 @@ export default {
   height: 100%;
   flex-wrap: wrap;
   position: relative;
-  z-index: 10;
+  padding: 10px 0;
+  z-index: 100;
 }
 
 .header-content h1 {
@@ -1226,15 +1224,18 @@ export default {
   display: flex;
   align-items: center;
   margin: 10px 0;
+  position: relative;
+  z-index: 101;
 }
 
 .header-content .auth-info .el-button {
   width: auto;
-  padding: 7px 15px;
+  padding: 8px 16px;
   font-size: 12px;
   cursor: pointer;
   position: relative;
-  z-index: 12;
+  z-index: 102;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .auth-container {
@@ -1615,24 +1616,31 @@ export default {
     flex-direction: column;
     text-align: center;
     gap: 10px;
+    padding: 15px 0;
   }
   
   .header-content h1 {
     font-size: 1.3rem;
-    margin: 15px 0 5px 0;
+    margin: 10px 0 0 0;
     text-align: center;
+    width: 100%;
   }
   
   .auth-info {
     display: flex;
     justify-content: center;
-    margin: 5px 0 15px 0;
+    margin: 5px 0 10px 0;
+    position: relative;
+    z-index: 101;
   }
   
   .header-content .auth-info .el-button {
-    padding: 8px 16px;
-    font-size: 13px;
+    padding: 10px 20px;
+    font-size: 14px;
     cursor: pointer;
+    position: relative;
+    z-index: 102;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
   }
   
   .card-header h3 {
@@ -1662,6 +1670,16 @@ export default {
   
   .el-alert__description {
     font-size: 12px;
+  }
+  
+  .clipboard-meta {
+    flex-direction: column;
+    gap: 5px;
+    font-size: 12px;
+  }
+  
+  .el-card__body {
+    padding: 15px;
   }
 }
 
