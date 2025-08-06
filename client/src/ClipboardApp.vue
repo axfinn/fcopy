@@ -1205,6 +1205,8 @@ export default {
   align-items: center;
   height: 100%;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 10;
 }
 
 .header-content h1 {
@@ -1213,6 +1215,7 @@ export default {
   font-size: 1.5rem;
   text-shadow: 0 2px 4px rgba(0,0,0,0.1);
   flex: 1;
+  text-align: left;
 }
 
 .header-content h1 i {
@@ -1227,8 +1230,11 @@ export default {
 
 .header-content .auth-info .el-button {
   width: auto;
-  padding: 5px 15px;
+  padding: 7px 15px;
   font-size: 12px;
+  cursor: pointer;
+  position: relative;
+  z-index: 12;
 }
 
 .auth-container {
@@ -1614,12 +1620,19 @@ export default {
   .header-content h1 {
     font-size: 1.3rem;
     margin: 15px 0 5px 0;
+    text-align: center;
   }
   
   .auth-info {
     display: flex;
     justify-content: center;
     margin: 5px 0 15px 0;
+  }
+  
+  .header-content .auth-info .el-button {
+    padding: 8px 16px;
+    font-size: 13px;
+    cursor: pointer;
   }
   
   .card-header h3 {
