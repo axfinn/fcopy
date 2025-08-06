@@ -1,9 +1,11 @@
 <template>
   <div id="app">
     <el-container>
-      <el-header>
+      <el-header class="app-header">
         <div class="header-content">
-          <h1><i class="el-icon-copy-document"></i> 跨平台剪贴板同步工具</h1>
+          <div class="header-left">
+            <h1><i class="el-icon-copy-document"></i> 跨平台剪贴板同步工具</h1>
+          </div>
           <div v-if="isAuthenticated" class="auth-info">
             <el-button 
               type="danger" 
@@ -43,7 +45,7 @@
             </el-button>
             
             <div class="auth-hint">
-              <p><i class="el-icon-info"></i> 提示：默认密钥为 <code>default-api-key</code></p>
+              <p><i class="el-icon-info"></i> 提示：请输入有效的API密钥</p>
               <p><i class="el-icon-info"></i> 管理员密钥可访问用户和日志</p>
             </div>
           </el-card>
@@ -1170,11 +1172,13 @@ export default {
   background: transparent;
 }
 
-.el-header {
+.app-header {
   background-color: transparent !important;
-  padding: 0;
+  padding: 0 !important;
   height: auto !important;
   line-height: normal !important;
+  position: relative !important;
+  z-index: 1000 !important;
 }
 
 .header-content {
@@ -1188,12 +1192,15 @@ export default {
   z-index: 100;
 }
 
+.header-left {
+  flex: 1;
+}
+
 .header-content h1 {
   margin: 10px 0;
   color: white;
   font-size: 1.5rem;
   text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  flex: 1;
   text-align: left;
 }
 
@@ -1209,22 +1216,31 @@ export default {
   z-index: 101;
 }
 
+.auth-info {
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
+  position: relative;
+  z-index: 1001;
+}
+
 .header-content .auth-info .el-button {
   width: auto;
   padding: 8px 16px;
   font-size: 12px;
   cursor: pointer;
   position: relative;
-  z-index: 102;
+  z-index: 1002;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 .logout-button {
   cursor: pointer !important;
   pointer-events: auto !important;
-  z-index: 9999 !important;
+  z-index: 1002 !important;
   position: relative !important;
   touch-action: manipulation;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
 }
 
 .auth-container {
@@ -1602,34 +1618,35 @@ export default {
   }
   
   .header-content {
-    flex-direction: column;
-    text-align: center;
+    flex-direction: row;
+    text-align: left;
     gap: 10px;
     padding: 15px 0;
   }
   
   .header-content h1 {
     font-size: 1.3rem;
-    margin: 10px 0 0 0;
-    text-align: center;
-    width: 100%;
+    margin: 0;
+    text-align: left;
+    width: auto;
+    flex: 1;
   }
   
   .auth-info {
     display: flex;
-    justify-content: center;
-    margin: 5px 0 10px 0;
+    justify-content: flex-end;
+    margin: 0;
     position: relative;
-    z-index: 101;
+    z-index: 1001;
   }
   
-  .header-content .auth-info .el-button {
-    padding: 10px 20px;
-    font-size: 14px;
+  .logout-button {
+    padding: 8px 16px;
+    font-size: 13px;
     cursor: pointer;
     position: relative;
-    z-index: 102;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    z-index: 1002;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2) !important;
   }
   
   .card-header h3 {
@@ -1706,5 +1723,20 @@ export default {
   
   .el-card__body {
     padding: 15px;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .header-content h1 {
+    font-size: 1.2rem;
+    text-align: center;
+    width: 100%;
+  }
+  
+  .auth-info {
+    justify-content: center;
   }
 }
