@@ -16,7 +16,7 @@
               class="logout-button"
               id="logout-button"
             >
-              <i class="el-icon-switch-button"></i> 清除密钥
+              <i class="el-icon-switch-button"></i> 登出
             </el-button>
           </div>
         </div>
@@ -38,18 +38,20 @@
                 <i class="el-icon-share"></i> {{ githubInfo.forks }} Forks
               </span>
               <span class="stat-item">
-                <i class="el-icon-info"></i> {{ githubInfo.version }}
+                <i class="el-icon-info"></i> 版本: {{ githubInfo.version }}
               </span>
             </div>
-            <el-button 
-              type="primary" 
-              @click="openGithubRepo"
-              round
-              size="small"
-              class="github-button"
-            >
-              <i class="el-icon-link"></i> 查看 GitHub 仓库
-            </el-button>
+            <div class="github-actions">
+              <el-button 
+                type="primary" 
+                @click="openGithubRepo"
+                round
+                size="small"
+                class="github-button"
+              >
+                <i class="el-icon-link"></i> 查看 GitHub 仓库
+              </el-button>
+            </div>
           </div>
         </el-card>
       </div>
@@ -716,7 +718,7 @@ export default {
           this.githubInfo = {
             stars: data.stargazers_count || 0,
             forks: data.forks_count || 0,
-            version: data.default_branch || 'main', // 使用默认分支作为版本信息
+            version: 'v1.2.6', // 当前项目版本
             url: data.html_url || 'https://github.com/axfinn/fcopy'
           };
         } else {
@@ -724,7 +726,7 @@ export default {
           this.githubInfo = {
             stars: 0,
             forks: 0,
-            version: 'v1.0.0',
+            version: 'v1.2.6', // 当前项目版本
             url: 'https://github.com/axfinn/fcopy'
           };
         }
@@ -734,7 +736,7 @@ export default {
         this.githubInfo = {
           stars: 0,
           forks: 0,
-          version: 'v1.0.0',
+          version: 'v1.2.6', // 当前项目版本
           url: 'https://github.com/axfinn/fcopy'
         };
       }
@@ -1208,12 +1210,13 @@ export default {
 
 .github-info-card {
   width: 100%;
-  max-width: 500px;
+  max-width: 600px;
   border-radius: 15px;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   border: none;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  margin-top: 10px;
 }
 
 .github-info-content {
@@ -1231,6 +1234,7 @@ export default {
 .github-info-header h3 {
   margin: 0;
   color: #333;
+  font-size: 1.4rem;
 }
 
 .github-stats {
@@ -1250,14 +1254,22 @@ export default {
   border-radius: 20px;
   font-size: 0.9rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  font-weight: 500;
 }
 
 .stat-item i {
   color: #409EFF;
 }
 
+.github-actions {
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
 .github-button {
-  margin-top: 10px;
+  margin: 0 5px;
 }
 
 .header-content {
@@ -1306,6 +1318,9 @@ export default {
   position: relative;
   z-index: 1002;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  background-color: #f56c6c !important;
+  border-color: #f56c6c !important;
+  color: white !important;
 }
 
 .logout-button {
@@ -1315,6 +1330,9 @@ export default {
   position: relative !important;
   touch-action: manipulation;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+  background-color: #f56c6c !important;
+  border-color: #f56c6c !important;
+  color: white !important;
 }
 
 .auth-container {
