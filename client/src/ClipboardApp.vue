@@ -1,513 +1,98 @@
 <template>
   <div id="app">
     <el-container>
-      <el-header class="app-header">
-        <div class="header-content">
-          <div class="header-left">
-            <h1><i class="el-icon-copy-document"></i> 跨平台剪贴板同步工具</h1>
-          </div>
-          <div v-if="isAuthenticated" class="auth-info">
-            <el-button 
-              type="danger" 
-              size="small" 
-              @click="logout" 
-              @mousedown="handleLogoutMouseDown"
-              round
-              class="logout-button"
-              id="logout-button"
-            >
-              <i class="el-icon-switch-button"></i> 登出
-            </el-button>
-          </div>
-        </div>
-      </el-header>
+      <AppHeader 
+        :is-authenticated="isAuthenticated" 
+        @logout="logout"
+      />
       
-      <!-- GitHub项目信息展示在首页 -->
-      <div v-if="githubInfo" class="github-info-container">
-        <el-card class="github-info-card" shadow="always">
-          <div class="github-info-content">
-            <div class="github-info-header">
-              <i class="el-icon-star-off"></i>
-              <h3>GitHub 项目信息</h3>
-            </div>
-            <div class="github-stats">
-              <span class="stat-item">
-                <i class="el-icon-collection"></i> {{ githubInfo.stars }} Stars
-              </span>
-              <span class="stat-item">
-                <i class="el-icon-share"></i> {{ githubInfo.forks }} Forks
-              </span>
-              <span class="stat-item">
-                <i class="el-icon-info"></i> 版本: {{ githubInfo.version }}
-              </span>
-            </div>
-            <div class="github-actions">
-              <el-button 
-                type="primary" 
-                @click="openGithubRepo"
-                round
-                size="small"
-                class="github-button"
-              >
-                <i class="el-icon-link"></i> 查看 GitHub 仓库
-              </el-button>
-            </div>
-          </div>
-        </el-card>
-      </div>
+      <GitHubInfo :github-info="githubInfo" />
       
       <el-main>
-        <!-- API 密钥输入 -->
-        <div v-if="!isAuthenticated" class="auth-container">
-          <el-card class="auth-card" shadow="always">
-            <div class="auth-card-header">
-              <i class="el-icon-lock"></i>
-              <h2>安全验证</h2>
-            </div>
-            <el-input 
-              v-model="apiKey" 
-              placeholder="请输入访问密钥" 
-              show-password
-              size="large"
-              class="auth-input"
-            />
-            <el-button 
-              type="primary" 
-              @click="authenticate"
-              class="auth-button"
-              size="large"
-            >
-              <i class="el-icon-key"></i> 鉴权登录
-            </el-button>
-            
-            <div class="auth-hint">
-              <p><i class="el-icon-info"></i> 提示：请输入有效的API密钥</p>
-              <p><i class="el-icon-info"></i> 管理员密钥可访问用户和日志</p>
-            </div>
-          </el-card>
-        </div>
+        <LoginView 
+          v-if="!isAuthenticated" 
+          @authenticate="authenticate"
+        />
         
-        <!-- 主功能界面 -->
-        <div v-else>
-          <el-tabs type="border-card" class="main-tabs" v-model="activeTab">
-            <el-tab-pane label="添加内容" name="add">
-              <el-row :gutter="20">
-                <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
-                  <div class="clipboard-input card">
-                    <div class="card-header">
-                      <h3><i class="el-icon-edit"></i> 添加文本</h3>
-                    </div>
-                    <el-input
-                      type="textarea"
-                      :rows="6"
-                      placeholder="请输入要同步的文本内容"
-                      v-model="newTextContent"
-                      class="content-textarea"
-                    ></el-input>
-                    <el-button 
-                      type="primary" 
-                      @click="addTextContent" 
-                      class="submit-button"
-                      round
-                    >
-                      <i class="el-icon-plus"></i> 添加文本并同步
-                    </el-button>
-                  </div>
-                  
-                  <div class="file-input card" style="margin-top: 30px">
-                    <div class="card-header">
-                      <h3><i class="el-icon-upload"></i> 添加文件/图片</h3>
-                    </div>
-                    <div class="paste-hint">
-                      <el-alert
-                        title="提示：截图后可直接按 Ctrl+V (Cmd+V) 粘贴上传"
-                        type="success"
-                        show-icon
-                        :closable="false"
-                        class="paste-instruction"
-                      />
-                    </div>
-                    <el-upload
-                      class="upload-demo"
-                      drag
-                      action="/api/clipboard/file"
-                      :headers="{ 'X-API-Key': apiKey }"
-                      :on-success="handleFileSuccess"
-                      :on-error="handleFileError"
-                      :multiple="false"
-                      name="file"
-                    >
-                      <i class="el-icon-upload"></i>
-                      <div class="el-upload__text">
-                        将文件拖到此处，或<em>点击上传</em>
-                      </div>
-                      <div class="el-upload__tip">
-                        支持各种文件类型，单个文件不超过10MB
-                      </div>
-                    </el-upload>
-                  </div>
-                </el-col>
-                
-                <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
-                  <div class="instructions card">
-                    <div class="card-header">
-                      <h3><i class="el-icon-guide"></i> 使用说明</h3>
-                    </div>
-                    <ul>
-                      <li>文本同步：在左侧输入框中输入文本内容，点击"添加文本并同步"</li>
-                      <li>文件同步：将文件拖拽到上传区域或点击上传按钮</li>
-                      <li>截图粘贴：在任何地方截图后，直接按 Ctrl+V (Cmd+V) 粘贴上传</li>
-                      <li>实时同步：所有设备间内容将实时同步</li>
-                      <li>历史记录：可在"内容历史"标签页查看所有同步内容</li>
-                      <li>安全保护：所有内容均通过API密钥保护</li>
-                    </ul>
-                  </div>
-                  
-                  <!-- 原来的GitHub信息移除 -->
-                </el-col>
-              </el-row>
-            </el-tab-pane>
-            
-            <el-tab-pane label="内容历史" name="history">
-              <div class="clipboard-history">
-                <el-alert
-                  v-if="clipboardItems.length === 0"
-                  title="暂无内容"
-                  type="info"
-                  description="添加文本或文件后会显示在这里"
-                  show-icon
-                  class="empty-alert"
-                />
-                
-                <div class="clipboard-items-grid" v-else>
-                  <el-card 
-                    v-for="item in clipboardItems" 
-                    :key="item.id" 
-                    class="clipboard-item-card"
-                    shadow="hover"
-                  >
-                    <div class="clipboard-content">
-                      <!-- 文本内容 -->
-                      <div v-if="item.content" class="content-text">
-                        <div class="content-preview">{{ truncateText(item.content, 100) }}</div>
-                        <el-button 
-                          type="success" 
-                          size="small" 
-                          @click="copyToClipboard(item.content)"
-                          round
-                        >
-                          <i class="el-icon-document-copy"></i> 复制文本
-                        </el-button>
-                      </div>
-                      
-                      <!-- 文件内容 -->
-                      <div v-else-if="item.file_path" class="content-file">
-                        <div v-if="isImage(item.mime_type)" class="image-container">
-                          <img 
-                            :src="'/api/clipboard/file/' + item.id" 
-                            :alt="item.file_name" 
-                            class="content-image"
-                            @error="handleImageError"
-                          />
-                        </div>
-                        <div v-else-if="isTextFile(item.mime_type)" class="text-file-container">
-                          <div class="file-preview" @click="previewTextFile(item)">
-                            <i class="el-icon-document"></i>
-                            <span>{{ item.file_name }}</span>
-                            <div class="preview-hint">点击预览文件内容</div>
-                          </div>
-                        </div>
-                        <div v-else-if="isPdfFile(item.mime_type)" class="pdf-file-container">
-                          <div class="file-preview" @click="previewPdfFile(item)">
-                            <i class="el-icon-document"></i>
-                            <span>{{ item.file_name }}</span>
-                            <div class="preview-hint">点击预览PDF文件</div>
-                          </div>
-                        </div>
-                        <div v-else class="file-info">
-                          <i class="el-icon-document"></i>
-                          <span class="file-name">{{ item.file_name }}</span>
-                        </div>
-                        
-                        <div class="file-actions">
-                          <el-button 
-                            type="success" 
-                            size="small" 
-                            @click="downloadFileById(item.id, item.file_name)"
-                            round
-                          >
-                            <i class="el-icon-download"></i> 下载
-                          </el-button>
-                          <el-button 
-                            type="danger" 
-                            size="small" 
-                            @click="deleteItem(item.id)"
-                            round
-                          >
-                            <i class="el-icon-delete"></i> 删除
-                          </el-button>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="clipboard-meta">
-                      <div class="clipboard-time">
-                        <i class="el-icon-time"></i> {{ formatTime(item.created_at) }}
-                      </div>
-                      <div class="clipboard-size" v-if="item.file_size">
-                        <i class="el-icon-data-line"></i> {{ formatFileSize(item.file_size) }}
-                      </div>
-                    </div>
-                  </el-card>
-                </div>
-              </div>
-            </el-tab-pane>
-            
-            <el-tab-pane label="访问统计" name="analytics">
-              <div class="analytics-container">
-                <el-row :gutter="20">
-                  <el-col :span="24">
-                    <div class="card analytics-card">
-                      <div class="card-header">
-                        <h3><i class="el-icon-data-analysis"></i> 7天内访问记录</h3>
-                      </div>
-                      <el-table :data="accessLogs" style="width: 100%" max-height="400" :default-sort="{prop: 'timestamp', order: 'descending'}">
-                        <el-table-column prop="ip_address" label="IP地址" width="150" sortable></el-table-column>
-                        <el-table-column prop="request_path" label="请求路径" width="150" sortable></el-table-column>
-                        <el-table-column prop="request_method" label="方法" width="80" sortable></el-table-column>
-                        <el-table-column prop="user_agent" label="客户端信息" show-overflow-tooltip></el-table-column>
-                        <el-table-column prop="timestamp" label="时间" width="180" sortable>
-                          <template #default="scope">
-                            {{ formatTime(scope.row.timestamp) }}
-                          </template>
-                        </el-table-column>
-                      </el-table>
-                    </div>
-                  </el-col>
-                  <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
-                    <div class="card analytics-card">
-                      <div class="card-header">
-                        <h3><i class="el-icon-pie-chart"></i> 访问统计图表</h3>
-                      </div>
-                      <div class="chart-container">
-                        <canvas ref="accessChart"></canvas>
-                      </div>
-                    </div>
-                  </el-col>
-                  <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
-                    <div class="card analytics-card">
-                      <div class="card-header">
-                        <h3><i class="el-icon-warning-outline"></i> 限流状态</h3>
-                      </div>
-                      <el-table :data="rateLimits" style="width: 100%" max-height="400" :default-sort="{prop: 'updated_at', order: 'descending'}">
-                        <el-table-column prop="ip_address" label="IP地址" width="150" sortable></el-table-column>
-                        <el-table-column prop="request_count" label="请求次数" width="100" sortable></el-table-column>
-                        <el-table-column prop="last_request_time" label="最后请求时间" width="180" sortable>
-                          <template #default="scope">
-                            <span v-if="scope.row.last_request_time">
-                              {{ formatTime(scope.row.last_request_time) }}
-                            </span>
-                            <span v-else>-</span>
-                          </template>
-                        </el-table-column>
-                        <el-table-column prop="blocked_until" label="限制解除时间" width="180" sortable>
-                          <template #default="scope">
-                            <span v-if="scope.row.blocked_until">
-                              {{ formatTime(scope.row.blocked_until) }}
-                            </span>
-                            <span v-else>-</span>
-                          </template>
-                        </el-table-column>
-                        <el-table-column prop="updated_at" label="更新时间" width="180" sortable>
-                          <template #default="scope">
-                            {{ formatTime(scope.row.updated_at) }}
-                          </template>
-                        </el-table-column>
-                      </el-table>
-                    </div>
-                  </el-col>
-                </el-row>
-              </div>
-            </el-tab-pane>
-            
-            <el-tab-pane label="用户管理" name="userManagement" v-if="isAdmin">
-              <div class="user-management-container">
-                <el-row :gutter="20">
-                  <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
-                    <div class="card user-form-card">
-                      <div class="card-header">
-                        <h3><i class="el-icon-plus"></i> 添加新用户</h3>
-                      </div>
-                      <el-form :model="newUser" label-width="80px" @submit.prevent="addUser">
-                        <el-form-item label="用户名">
-                          <el-input v-model="newUser.username" placeholder="请输入用户名"></el-input>
-                        </el-form-item>
-                        <el-form-item label="API密钥">
-                          <el-input v-model="newUser.apiKey" placeholder="请输入API密钥"></el-input>
-                        </el-form-item>
-                        <el-form-item>
-                          <el-button type="primary" @click="addUser" :loading="isAddingUser">添加用户</el-button>
-                        </el-form-item>
-                      </el-form>
-                    </div>
-                  </el-col>
-                  <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
-                    <div class="card user-list-card">
-                      <div class="card-header">
-                        <h3><i class="el-icon-user"></i> 用户列表</h3>
-                      </div>
-                      <el-table :data="users" style="width: 100%" max-height="400">
-                        <el-table-column prop="id" label="ID" width="80"></el-table-column>
-                        <el-table-column prop="username" label="用户名"></el-table-column>
-                        <el-table-column prop="is_admin" label="管理员" width="100">
-                          <template #default="scope">
-                            <el-tag :type="scope.row.is_admin ? 'danger' : 'info'">
-                              {{ scope.row.is_admin ? '是' : '否' }}
-                            </el-tag>
-                          </template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="150">
-                          <template #default="scope">
-                            <el-button
-                              size="small"
-                              type="danger"
-                              @click="deleteUser(scope.row.id)"
-                              :disabled="scope.row.is_admin"
-                            >
-                              删除
-                            </el-button>
-                          </template>
-                        </el-table-column>
-                      </el-table>
-                    </div>
-                  </el-col>
-                </el-row>
-              </div>
-            </el-tab-pane>
-          </el-tabs>
-        </div>
+        <MainView 
+          v-else
+          :api-key="apiKey"
+          :clipboard-items="clipboardItems"
+          :access-logs="accessLogs"
+          :rate-limits="rateLimits"
+          :is-admin="isAdmin"
+          :users="users"
+          @add-text-content="addTextContent"
+          @file-success="handleFileSuccess"
+          @file-error="handleFileError"
+          @copy-to-clipboard="copyToClipboard"
+          @download-file="downloadFileById"
+          @delete-item="deleteItem"
+          @add-user="addUser"
+          @delete-user="deleteUser"
+          @preview-text-file="previewTextFile"
+          @preview-pdf-file="previewPdfFile"
+        />
       </el-main>
     </el-container>
-    
-    <!-- 文本文件预览对话框 -->
-    <el-dialog
-      v-model="textPreviewDialogVisible"
-      :title="'文件预览: ' + previewFile.file_name"
-      width="60%"
-      class="file-preview-dialog"
-    >
-      <pre class="text-preview-content">{{ previewFileContent }}</pre>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="textPreviewDialogVisible = false">关闭</el-button>
-          <el-button 
-            type="primary" 
-            @click="downloadFileById(previewFile.id, previewFile.file_name)"
-          >
-            下载文件
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
-    
-    <!-- PDF文件预览对话框 -->
-    <el-dialog
-      v-model="pdfPreviewDialogVisible"
-      :title="'PDF预览: ' + previewFile.file_name"
-      width="80%"
-      class="file-preview-dialog"
-    >
-      <div class="pdf-preview-container">
-        <iframe 
-          :src="'/api/clipboard/file/' + previewFile.id" 
-          width="100%" 
-          height="600" 
-          frameborder="0"
-        ></iframe>
-      </div>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="pdfPreviewDialogVisible = false">关闭</el-button>
-          <el-button 
-            type="primary" 
-            @click="downloadFileById(previewFile.id, previewFile.file_name)"
-          >
-            下载文件
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script>
-import io from 'socket.io-client';
-import { Document, UploadFilled } from '@element-plus/icons-vue';
+import { io } from 'socket.io-client';
 import Chart from 'chart.js/auto';
+import GitHubInfo from './components/GitHubInfo.vue';
 
 export default {
   name: 'ClipboardApp',
   components: {
-    Document,
-    UploadFilled
+    GitHubInfo
   },
   data() {
     return {
-      apiKey: '',
       isAuthenticated: false,
-      socket: null,
-      newTextContent: '',
+      apiKey: '',
+      activeTab: 'add',
       clipboardItems: [],
       accessLogs: [],
       rateLimits: [],
-      activeTab: 'add',
-      textPreviewDialogVisible: false,
-      pdfPreviewDialogVisible: false,
-      previewFile: {},
-      previewFileContent: '',
-      githubInfo: null,
-      accessChart: null,
-      isAdmin: false,
       users: [],
+      isAdmin: false,
+      githubInfo: null,
+      socket: null,
+      accessChart: null,
       newUser: {
         username: '',
         apiKey: ''
       },
-      isAddingUser: false
+      isAddingUser: false,
+      previewFile: {},
+      previewFileContent: '',
+      textPreviewDialogVisible: false,
+      pdfPreviewDialogVisible: false,
+      newTextContent: ''
     };
   },
   mounted() {
-    // 检查本地存储中是否有 API 密钥
+    // 尝试从本地存储获取API密钥
     const storedApiKey = localStorage.getItem('clipboard_api_key');
     if (storedApiKey) {
       this.apiKey = storedApiKey;
       this.authenticate();
     }
     
-    // 获取GitHub项目信息
+    // 获取GitHub信息
     this.fetchGithubInfo();
     
     // 添加粘贴事件监听器
     document.addEventListener('paste', this.handlePaste);
-    
-    // 初始化时检查是否有粘贴板内容（可选）
-    if (navigator.clipboard && navigator.clipboard.read) {
-      navigator.clipboard.read().then(data => {
-        for (let i = 0; i < data.length; i++) {
-          const item = data[i];
-          if (item.types.includes('image/png') || item.types.includes('image/jpeg')) {
-            this.$message.info('检测到剪贴板中有图片，可以粘贴上传');
-            break;
-          }
-        }
-      }).catch(err => {
-        console.log('无法读取剪贴板内容:', err);
-      });
-    }
   },
   methods: {
     // 鉴权
-    authenticate() {
-      if (!this.apiKey) {
+    async authenticate(inputApiKey) {
+      const authKey = inputApiKey || this.apiKey;
+      
+      if (!authKey) {
         this.$message.error('请输入 API 密钥');
         return;
       }
@@ -515,13 +100,14 @@ export default {
       // 尝试获取数据以验证密钥
       fetch('/api/clipboard', {
         headers: {
-          'X-API-Key': this.apiKey
+          'X-API-Key': authKey
         }
       })
       .then(response => {
         if (response.ok) {
           this.isAuthenticated = true;
-          localStorage.setItem('clipboard_api_key', this.apiKey);
+          this.apiKey = authKey;
+          localStorage.setItem('clipboard_api_key', authKey);
           this.connectSocket();
           this.fetchClipboardHistory();
           this.fetchAccessLogs();  // 获取访问日志
@@ -576,11 +162,6 @@ export default {
       console.log('登出完成');
     },
     
-    // 调试方法：检查按钮是否被按下
-    handleLogoutMouseDown() {
-      console.log('登出按钮被按下');
-    },
-    
     // 获取剪贴板历史记录
     async fetchClipboardHistory() {
       try {
@@ -607,7 +188,6 @@ export default {
         });
         const result = await response.json();
         this.accessLogs = result.data;
-        this.updateAccessChart();
       } catch (error) {
         console.error('获取访问日志失败:', error);
         // 不显示错误消息，因为这可能是一个可选功能
@@ -649,8 +229,8 @@ export default {
     },
 
     // 添加用户
-    async addUser() {
-      if (!this.newUser.username || !this.newUser.apiKey) {
+    async addUser(userData) {
+      if (!userData.username || !userData.apiKey) {
         this.$message.warning('请填写完整的用户信息');
         return;
       }
@@ -663,7 +243,7 @@ export default {
             'Content-Type': 'application/json',
             'X-API-Key': this.apiKey
           },
-          body: JSON.stringify(this.newUser)
+          body: JSON.stringify(userData)
         });
 
         const result = await response.json();
@@ -718,7 +298,7 @@ export default {
           this.githubInfo = {
             stars: data.stargazers_count || 0,
             forks: data.forks_count || 0,
-            version: 'v1.2.6', // 当前项目版本
+            version: 'v1.2.7', // 当前项目版本
             url: data.html_url || 'https://github.com/axfinn/fcopy'
           };
         } else {
@@ -726,7 +306,7 @@ export default {
           this.githubInfo = {
             stars: 0,
             forks: 0,
-            version: 'v1.2.6', // 当前项目版本
+            version: 'v1.2.7', // 当前项目版本
             url: 'https://github.com/axfinn/fcopy'
           };
         }
@@ -736,7 +316,7 @@ export default {
         this.githubInfo = {
           stars: 0,
           forks: 0,
-          version: 'v1.2.6', // 当前项目版本
+          version: 'v1.2.7', // 当前项目版本
           url: 'https://github.com/axfinn/fcopy'
         };
       }
@@ -765,16 +345,9 @@ export default {
       }
     },
     
-    // 打开GitHub仓库页面
-    openGithubRepo() {
-      if (this.githubInfo && this.githubInfo.url) {
-        window.open(this.githubInfo.url, '_blank');
-      }
-    },
-    
     // 添加文本内容
-    async addTextContent() {
-      if (!this.newTextContent.trim()) {
+    async addTextContent(content) {
+      if (!content.trim()) {
         this.$message.warning('请输入文本内容');
         return;
       }
@@ -786,7 +359,7 @@ export default {
             'Content-Type': 'application/json',
             'X-API-Key': this.apiKey
           },
-          body: JSON.stringify({ content: this.newTextContent })
+          body: JSON.stringify({ content })
         });
         
         if (response.ok) {
@@ -894,15 +467,6 @@ export default {
       }
     },
 
-    // 下载文件（兼容旧方式）
-    downloadFile(filePath, fileName) {
-      // 对于图片预览对话框中的下载按钮，仍然使用这个方法
-      const link = document.createElement('a');
-      link.href = filePath;
-      link.download = fileName;
-      link.click();
-    },
-
     // 删除项目
     async deleteItem(id) {
       try {
@@ -925,89 +489,6 @@ export default {
         console.error('删除失败:', error);
         this.$message.error('删除失败');
       }
-    },
-    
-    // 判断是否为图片
-    isImage(mimeType) {
-      return mimeType && mimeType.startsWith('image/');
-    },
-    
-    // 判断是否为文本文件
-    isTextFile(mimeType) {
-      if (!mimeType) return false;
-      return mimeType.startsWith('text/') || 
-             mimeType === 'application/json' || 
-             mimeType === 'application/xml';
-    },
-    
-    // 判断是否为PDF文件
-    isPdfFile(mimeType) {
-      if (!mimeType) return false;
-      return mimeType === 'application/pdf';
-    },
-    
-    // 格式化文件大小
-    formatFileSize(size) {
-      if (size < 1024) {
-        return size + ' B';
-      } else if (size < 1024 * 1024) {
-        return (size / 1024).toFixed(2) + ' KB';
-      } else {
-        return (size / (1024 * 1024)).toFixed(2) + ' MB';
-      }
-    },
-    
-    // 格式化时间
-    formatTime(time) {
-      return new Date(time).toLocaleString('zh-CN');
-    },
-    
-    // 连接 Socket.IO 实现实时更新
-    connectSocket() {
-      // 使用相对路径连接WebSocket服务器
-      this.socket = io('/', {
-        auth: {
-          apiKey: this.apiKey
-        }
-      });
-      
-      this.socket.on('clipboard-update', (data) => {
-        // 将新内容添加到列表顶部
-        this.clipboardItems.unshift(data);
-        this.$message.success('收到新内容');
-      });
-      
-      this.socket.on('clipboard-cleanup', () => {
-        // 定期清理后重新获取数据
-        this.fetchClipboardHistory();
-        this.$message.info('系统已完成定期清理');
-      });
-      
-      this.socket.on('connect_error', (error) => {
-        console.error('WebSocket连接失败:', error);
-        this.$message.error('连接失败: ' + error.message);
-      });
-      
-      this.socket.on('disconnect', (reason) => {
-        console.log('WebSocket断开连接:', reason);
-      });
-    },
-
-    // 处理图片加载错误
-    handleImageError(event) {
-      console.error('图片加载失败:', event);
-      // 设置一个默认的占位图
-      event.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIGZpbGw9IiM5OTkiPkltYWdlIG5vdCBhdmFpbGFibGU8L3RleHQ+PC9zdmc+';
-      event.target.style.opacity = '0.7';
-      this.$message.warning('图片加载失败，可能文件已丢失');
-    },
-
-    // 截断文本显示
-    truncateText(text, maxLength) {
-      if (text.length <= maxLength) {
-        return text;
-      }
-      return text.substr(0, maxLength) + '...';
     },
     
     // 预览文本文件
@@ -1101,72 +582,36 @@ export default {
       });
     },
 
-    // 更新访问图表
-    updateAccessChart() {
-      if (!this.$refs.accessChart) return;
-
-      // 销毁现有图表（如果存在）
-      if (this.accessChart) {
-        this.accessChart.destroy();
-      }
-
-      // 准备图表数据
-      const pathCounts = {};
-      const methodCounts = {};
-      
-      this.accessLogs.forEach(log => {
-        // 统计请求路径
-        pathCounts[log.request_path] = (pathCounts[log.request_path] || 0) + 1;
-        
-        // 统计请求方法
-        methodCounts[log.request_method] = (methodCounts[log.request_method] || 0) + 1;
-      });
-
-      // 创建图表
-      const ctx = this.$refs.accessChart.getContext('2d');
-      this.accessChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: Object.keys(pathCounts),
-          datasets: [{
-            label: '访问次数',
-            data: Object.values(pathCounts),
-            backgroundColor: 'rgba(64, 158, 255, 0.6)',
-            borderColor: 'rgba(64, 158, 255, 1)',
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                precision: 0
-              }
-            }
-          }
+    // 连接 Socket.IO 实现实时更新
+    connectSocket() {
+      // 使用相对路径连接WebSocket服务器
+      this.socket = io('/', {
+        auth: {
+          apiKey: this.apiKey
         }
       });
+      
+      this.socket.on('clipboard-update', (data) => {
+        // 将新内容添加到列表顶部
+        this.clipboardItems.unshift(data);
+        this.$message.success('收到新内容');
+      });
+      
+      this.socket.on('clipboard-cleanup', () => {
+        // 定期清理后重新获取数据
+        this.fetchClipboardHistory();
+        this.$message.info('系统已完成定期清理');
+      });
+      
+      this.socket.on('connect_error', (error) => {
+        console.error('WebSocket连接失败:', error);
+        this.$message.error('连接失败: ' + error.message);
+      });
+      
+      this.socket.on('disconnect', (reason) => {
+        console.log('WebSocket断开连接:', reason);
+      });
     }
-  },
-  watch: {
-    activeTab(newTab) {
-      if (newTab === 'analytics') {
-        // 延迟更新图表，确保DOM已渲染
-        this.$nextTick(() => {
-          this.updateAccessChart();
-        });
-      }
-    }
-  },
-  beforeUnmount() {
-    if (this.socket) {
-      this.socket.disconnect();
-    }
-    // 移除粘贴事件监听器
-    document.removeEventListener('paste', this.handlePaste);
   }
 };
 </script>
@@ -1183,140 +628,36 @@ export default {
   min-height: 100vh;
   padding: 20px;
   box-sizing: border-box;
-}
-</style>
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
 .el-container {
   height: 100%;
   background: transparent;
-}
-
-.app-header {
-  background-color: transparent !important;
-  padding: 0 !important;
-  height: auto !important;
-  line-height: normal !important;
-  position: relative !important;
-  z-index: 9997 !important;
-}
-
-.github-info-container {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 20px;
-  padding: 0 20px;
-}
-
-.github-info-card {
-  width: 100%;
-  max-width: 600px;
-  border-radius: 15px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border: none;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  margin-top: 10px;
-}
-
-.github-info-content {
-  text-align: center;
-}
-
-.github-info-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 15px;
-}
-
-.github-info-header h3 {
-  margin: 0;
-  color: #333;
-  font-size: 1.4rem;
-}
-
-.github-stats {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 15px;
-  margin: 20px 0;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  background-color: #f8f9fa;
-  padding: 8px 15px;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  font-weight: 500;
-}
-
-.stat-item i {
-  color: #409EFF;
-}
-
-.github-actions {
-  margin-top: 15px;
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-}
-
-.github-button {
-  margin: 0 5px;
-}
-
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 100%;
-  flex-wrap: wrap;
-  position: relative;
-  padding: 10px 0;
-  z-index: 100;
-}
-
-.header-left {
   flex: 1;
-}
-
-.header-content h1 {
-  margin: 10px 0;
-  color: white;
-  font-size: 1.5rem;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  text-align: left;
-}
-
-.header-content h1 i {
-  margin-right: 10px;
-}
-
-.auth-info {
   display: flex;
-  align-items: center;
-  margin: 10px 0;
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1001;
+  flex-direction: column;
 }
 
-.header-content .auth-info .el-button {
-  width: auto;
-  padding: 8px 16px;
-  font-size: 12px;
-  cursor: pointer;
-  position: relative;
-  z-index: 1002;
+.el-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+@media (max-width: 768px) {
+  #app {
+    padding: 10px;
+  }
+  
+  .el-card__body {
+    padding: 15px;
+  }
+}
+</style>
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   background-color: #f56c6c !important;
   border-color: #f56c6c !important;
