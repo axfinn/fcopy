@@ -317,31 +317,60 @@ function initializeDatabase(database) {
     }
   });
   
-  // 插入默认管理员用户（如果不存在）
+  // 插入或更新默认管理员用户
   const adminApiKey = process.env.ADMIN_API_KEY || 'admin_secret_key';
   console.log('管理员API密钥已设置:', adminApiKey !== 'admin_secret_key' ? '是 (来自环境变量或.env文件)' : '否 (使用默认值)');
-  database.run(`INSERT OR IGNORE INTO users (username, api_key, is_admin) VALUES (?, ?, ?)`, 
-    ['admin', adminApiKey, true], 
-    (err) => {
-      if (err) {
-        console.error('创建默认管理员用户失败:', err.message);
-      } else {
-        console.log('默认管理员用户已创建或已存在');
-      }
-  });
   
-  // 插入默认普通用户（如果不存在）
+  // 强制更新管理员用户API密钥（如果环境变量存在）
+  if (process.env.ADMIN_API_KEY) {
+    database.run(`INSERT OR REPLACE INTO users (id, username, api_key, is_admin) VALUES ((SELECT id FROM users WHERE username = 'admin'), ?, ?, ?)`, 
+      ['admin', adminApiKey, true], 
+      (err) => {
+        if (err) {
+          console.error('更新管理员用户失败:', err.message);
+        } else {
+          console.log('管理员用户API密钥已更新');
+        }
+    });
+  } else {
+    database.run(`INSERT OR IGNORE INTO users (username, api_key, is_admin) VALUES (?, ?, ?)`, 
+      ['admin', adminApiKey, true], 
+      (err) => {
+        if (err) {
+          console.error('创建默认管理员用户失败:', err.message);
+        } else {
+          console.log('默认管理员用户已创建或已存在');
+        }
+    });
+  }
+  
+  // 插入或更新默认普通用户
   const defaultApiKey = process.env.CLIPBOARD_API_KEY || 'default-api-key';
-  database.run(`INSERT OR IGNORE INTO users (username, api_key, is_admin) VALUES (?, ?, ?)`, 
-    ['default', defaultApiKey, false], 
-    (err) => {
-      if (err) {
-        console.error('创建默认用户失败:', err.message);
-      } else {
-        console.log('默认用户已创建或已存在');
-        console.log('当前配置的API密钥:', defaultApiKey);
-      }
-  });
+  
+  // 强制更新默认用户API密钥（如果环境变量存在）
+  if (process.env.CLIPBOARD_API_KEY) {
+    database.run(`INSERT OR REPLACE INTO users (id, username, api_key, is_admin) VALUES ((SELECT id FROM users WHERE username = 'default'), ?, ?, ?)`, 
+      ['default', defaultApiKey, false], 
+      (err) => {
+        if (err) {
+          console.error('更新默认用户失败:', err.message);
+        } else {
+          console.log('默认用户API密钥已更新');
+          console.log('当前配置的API密钥:', defaultApiKey);
+        }
+    });
+  } else {
+    database.run(`INSERT OR IGNORE INTO users (username, api_key, is_admin) VALUES (?, ?, ?)`, 
+      ['default', defaultApiKey, false], 
+      (err) => {
+        if (err) {
+          console.error('创建默认用户失败:', err.message);
+        } else {
+          console.log('默认用户已创建或已存在');
+          console.log('当前配置的API密钥:', defaultApiKey);
+        }
+    });
+  }
 }
 
 // API 路由 (需要鉴权)
@@ -662,6 +691,28 @@ app.get('/api/users/me', authenticateApiKey, (req, res) => {
     username: req.user.username,
     is_admin: req.user.is_admin
   });
+});
+
+// 获取活跃用户列表 (仅管理员可访问)
+app.get('/api/active-users', authenticateApiKey, (req, res) => {
+  // 检查是否为管理员
+  if (!req.user.is_admin) {
+    return res.status(403).json({ error: '访问被拒绝，需要管理员权限' });
+  }
+  
+  // 获取所有连接的用户
+  const activeUsers = [];
+  for (let [id, socket] of io.of("/").sockets) {
+    if (socket.user && !activeUsers.find(user => user.id === socket.user.id)) {
+      activeUsers.push({
+        id: socket.user.id,
+        username: socket.user.username,
+        is_admin: socket.user.is_admin
+      });
+    }
+  }
+  
+  res.json({ data: activeUsers });
 });
 
 // Socket.IO 连接处理

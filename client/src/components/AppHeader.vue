@@ -4,7 +4,7 @@
       <div class="header-left">
         <h1><i class="el-icon-copy-document"></i> 跨平台剪贴板同步工具</h1>
       </div>
-      <div v-if="isAuthenticated" class="auth-info">
+      <div class="auth-info" v-if="isAuthenticated">
         <el-button 
           type="danger" 
           size="small" 
@@ -45,6 +45,7 @@ export default {
   line-height: normal !important;
   position: relative !important;
   z-index: 1000 !important;
+  width: 100%;
 }
 
 .header-content {
@@ -54,8 +55,13 @@ export default {
   height: 100%;
   flex-wrap: wrap;
   position: relative;
-  padding: 10px 0;
+  padding: 10px 20px;
   z-index: 100;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 10px;
+  margin: 10px;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }
 
 .header-left {
@@ -64,7 +70,7 @@ export default {
 
 .header-content h1 {
   margin: 10px 0;
-  color: white;
+  color: #333;
   font-size: 1.5rem;
   text-shadow: 0 2px 4px rgba(0,0,0,0.1);
   text-align: left;
@@ -72,20 +78,17 @@ export default {
 
 .header-content h1 i {
   margin-right: 10px;
+  color: #409EFF;
 }
 
 .auth-info {
   display: flex;
   align-items: center;
   margin: 10px 0;
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
   z-index: 1001;
 }
 
-.header-content .auth-info .el-button {
+.logout-button {
   width: auto;
   padding: 8px 16px;
   font-size: 12px;
@@ -96,18 +99,8 @@ export default {
   background-color: #f56c6c !important;
   border-color: #f56c6c !important;
   color: white !important;
-}
-
-.logout-button {
-  cursor: pointer !important;
   pointer-events: auto !important;
-  z-index: 1002 !important;
-  position: relative !important;
-  touch-action: manipulation;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-  background-color: #f56c6c !important;
-  border-color: #f56c6c !important;
-  color: white !important;
+  margin: 0 !important;
 }
 
 @media (max-width: 768px) {
@@ -132,9 +125,6 @@ export default {
     margin: 0;
     position: relative;
     z-index: 1001;
-    right: auto;
-    top: auto;
-    transform: none;
   }
   
   .logout-button {
@@ -143,33 +133,21 @@ export default {
     cursor: pointer;
     position: relative;
     z-index: 1002;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.2) !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
   }
 }
 
 @media (min-width: 769px) {
   .logout-button {
-    padding: 10px 20px !important;
-    font-size: 13px !important;
-    min-width: 100px !important;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.2) !important;
-    cursor: pointer !important;
-    pointer-events: auto !important;
-    z-index: 9999 !important;
-    position: relative !important;
+    padding: 10px 20px;
+    font-size: 13px;
+    min-width: 100px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    z-index: 1003;
   }
   
   .auth-info {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 9998;
-  }
-  
-  .app-header {
-    position: relative !important;
-    z-index: 9997 !important;
+    z-index: 1002;
   }
 }
 </style>

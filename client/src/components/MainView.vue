@@ -1,5 +1,6 @@
 <template>
   <el-tabs type="border-card" class="main-tabs" v-model="activeTab">
+    <!-- 添加内容标签页 -->
     <el-tab-pane label="添加内容" name="add">
       <el-row :gutter="20">
         <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
@@ -76,6 +77,7 @@
       </el-row>
     </el-tab-pane>
     
+    <!-- 内容历史标签页 -->
     <el-tab-pane label="内容历史" name="history">
       <div class="clipboard-history">
         <el-alert
@@ -170,115 +172,121 @@
       </div>
     </el-tab-pane>
     
-    <el-tab-pane label="访问统计" name="analytics">
-      <div class="analytics-container">
-        <el-row :gutter="20">
-          <el-col :span="24">
-            <div class="card analytics-card">
-              <div class="card-header">
-                <h3><i class="el-icon-data-analysis"></i> 7天内访问记录</h3>
-              </div>
-              <el-table :data="accessLogs" style="width: 100%" max-height="400" :default-sort="{prop: 'timestamp', order: 'descending'}">
-                <el-table-column prop="ip_address" label="IP地址" width="150" sortable></el-table-column>
-                <el-table-column prop="request_path" label="请求路径" width="150" sortable></el-table-column>
-                <el-table-column prop="request_method" label="方法" width="80" sortable></el-table-column>
-                <el-table-column prop="user_agent" label="客户端信息" show-overflow-tooltip></el-table-column>
-                <el-table-column prop="timestamp" label="时间" width="180" sortable>
-                  <template #default="scope">
-                    {{ formatTime(scope.row.timestamp) }}
-                  </template>
-                </el-table-column>
-              </el-table>
+    <!-- 系统监控标签页 (仅管理员可见) -->
+    <el-tab-pane label="系统监控" name="admin" v-if="isAdmin">
+      <el-row :gutter="20">
+        <el-col :span="24">
+          <div class="card">
+            <div class="card-header">
+              <h3><i class="el-icon-monitor"></i> 系统监控面板</h3>
             </div>
-          </el-col>
-          <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
-            <div class="card analytics-card">
-              <div class="card-header">
-                <h3><i class="el-icon-pie-chart"></i> 访问统计图表</h3>
-              </div>
-              <div class="chart-container">
-                <canvas ref="accessChart"></canvas>
-              </div>
-            </div>
-          </el-col>
-          <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
-            <div class="card analytics-card">
-              <div class="card-header">
-                <h3><i class="el-icon-warning-outline"></i> 限流状态</h3>
-              </div>
-              <el-table :data="rateLimits" style="width: 100%" max-height="400" :default-sort="{prop: 'updated_at', order: 'descending'}">
-                <el-table-column prop="ip_address" label="IP地址" width="150" sortable></el-table-column>
-                <el-table-column prop="request_count" label="请求次数" width="100" sortable></el-table-column>
-                <el-table-column prop="last_request_time" label="最后请求时间" width="180" sortable>
-                  <template #default="scope">
-                    <span v-if="scope.row.last_request_time">
-                      {{ formatTime(scope.row.last_request_time) }}
-                    </span>
-                    <span v-else>-</span>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </div>
-          </el-col>
-        </el-row>
-      </div>
+            
+            <el-tabs type="card">
+              <el-tab-pane label="用户管理">
+                <el-table :data="users" style="width: 100%" v-loading="loadingUsers">
+                  <el-table-column prop="id" label="ID" width="80"></el-table-column>
+                  <el-table-column prop="username" label="用户名"></el-table-column>
+                  <el-table-column label="角色">
+                    <template #default="scope">
+                      <el-tag :type="scope.row.is_admin ? 'danger' : 'success'">
+                        {{ scope.row.is_admin ? '管理员' : '普通用户' }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作">
+                    <template #default="scope">
+                      <el-button 
+                        size="mini" 
+                        type="danger" 
+                        @click="deleteUser(scope.row.id)"
+                        :disabled="scope.row.username === 'admin' || scope.row.username === 'default'"
+                      >
+                        删除
+                      </el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                
+                <div style="margin-top: 20px;">
+                  <el-form :inline="true" :model="newUser" class="demo-form-inline">
+                    <el-form-item label="用户名">
+                      <el-input v-model="newUser.username" placeholder="请输入用户名"></el-input>
+                    </el-form-item>
+                    <el-form-item label="API密钥">
+                      <el-input v-model="newUser.apiKey" placeholder="请输入API密钥"></el-input>
+                    </el-form-item>
+                    <el-form-item>
+                      <el-button type="primary" @click="addUser">添加用户</el-button>
+                    </el-form-item>
+                  </el-form>
+                </div>
+              </el-tab-pane>
+              
+              <el-tab-pane label="活跃客户端">
+                <el-table :data="activeUsers" style="width: 100%" v-loading="loadingActiveUsers">
+                  <el-table-column prop="id" label="用户ID" width="80"></el-table-column>
+                  <el-table-column prop="username" label="用户名"></el-table-column>
+                  <el-table-column label="角色">
+                    <template #default="scope">
+                      <el-tag :type="scope.row.is_admin ? 'danger' : 'success'">
+                        {{ scope.row.is_admin ? '管理员' : '普通用户' }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="connectionTime" label="连接时间">
+                    <template #default="scope">
+                      {{ formatTime(scope.row.connectionTime) }}
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </el-tab-pane>
+              
+              <el-tab-pane label="访问统计">
+                <div style="height: 400px">
+                  <canvas ref="accessChart"></canvas>
+                </div>
+              </el-tab-pane>
+            </el-tabs>
+          </div>
+        </el-col>
+      </el-row>
     </el-tab-pane>
     
-    <el-tab-pane label="用户管理" name="userManagement" v-if="isAdmin">
-      <div class="user-management-container">
-        <el-row :gutter="20">
-          <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
-            <div class="card user-form-card">
-              <div class="card-header">
-                <h3><i class="el-icon-plus"></i> 添加新用户</h3>
-              </div>
-              <el-form :model="newUser" label-width="80px" @submit.prevent="addUser">
-                <el-form-item label="用户名">
-                  <el-input v-model="newUser.username" placeholder="请输入用户名"></el-input>
-                </el-form-item>
-                <el-form-item label="API密钥">
-                  <el-input v-model="newUser.apiKey" placeholder="请输入API密钥"></el-input>
-                </el-form-item>
-                <el-form-item>
-                  <el-button type="primary" @click="addUser" :loading="isAddingUser">添加用户</el-button>
-                </el-form-item>
-              </el-form>
+    <!-- 用户信息标签页 (普通用户可见) -->
+    <el-tab-pane label="我的连接" name="user-info" v-if="!isAdmin">
+      <el-row :gutter="20">
+        <el-col :span="24">
+          <div class="card">
+            <div class="card-header">
+              <h3><i class="el-icon-user"></i> 活跃客户端</h3>
             </div>
-          </el-col>
-          
-          <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
-            <div class="card user-list-card">
-              <div class="card-header">
-                <h3><i class="el-icon-user"></i> 用户列表</h3>
-              </div>
-              <el-table :data="users" style="width: 100%">
-                <el-table-column prop="username" label="用户名" width="180"></el-table-column>
-                <el-table-column prop="created_at" label="创建时间" width="180">
-                  <template #default="scope">
-                    {{ formatTime(scope.row.created_at) }}
-                  </template>
-                </el-table-column>
-                <el-table-column label="操作">
-                  <template #default="scope">
-                    <el-button
-                      type="danger"
-                      size="small"
-                      @click="deleteUser(scope.row.id)"
-                    >
-                      删除
-                    </el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </div>
-          </el-col>
-        </el-row>
-      </div>
+            
+            <el-table :data="activeUsers" style="width: 100%" v-loading="loadingActiveUsers">
+              <el-table-column prop="id" label="用户ID" width="80"></el-table-column>
+              <el-table-column prop="username" label="用户名"></el-table-column>
+              <el-table-column label="角色">
+                <template #default="scope">
+                  <el-tag :type="scope.row.is_admin ? 'danger' : 'success'">
+                    {{ scope.row.is_admin ? '管理员' : '普通用户' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="connectionTime" label="连接时间">
+                <template #default="scope">
+                  {{ formatTime(scope.row.connectionTime) }}
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </el-col>
+      </el-row>
     </el-tab-pane>
   </el-tabs>
 </template>
 
 <script>
+import { formatDistanceToNow, parseISO } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
 export default {
   name: 'MainView',
   props: {
@@ -305,22 +313,27 @@ export default {
     users: {
       type: Array,
       required: true
+    },
+    activeUsers: {
+      type: Array,
+      required: true
     }
   },
   data() {
     return {
       activeTab: 'add',
       newTextContent: '',
+      previewFile: {},
+      previewFileContent: '',
+      pdfPreviewDialogVisible: false,
+      textPreviewDialogVisible: false,
+      textPreviewContent: '',
       newUser: {
         username: '',
         apiKey: ''
       },
-      isAddingUser: false,
-      previewFile: {},
-      previewFileContent: '',
-      textPreviewDialogVisible: false,
-      pdfPreviewDialogVisible: false,
-      accessChart: null
+      loadingUsers: false,
+      loadingActiveUsers: false
     }
   },
   emits: [
@@ -335,6 +348,12 @@ export default {
     'preview-text-file',
     'preview-pdf-file'
   ],
+  mounted() {
+    // 组件挂载完成后执行的初始化逻辑
+    console.log('MainView component mounted');
+    // 可以在这里执行初始化操作，如加载数据、初始化图表等
+  },
+  
   methods: {
     addTextContent() {
       this.$emit('add-text-content', this.newTextContent);
@@ -361,11 +380,28 @@ export default {
     },
     
     addUser() {
+      if (!this.newUser.username || !this.newUser.apiKey) {
+        this.$message.error('用户名和API密钥不能为空');
+        return;
+      }
+      
       this.$emit('add-user', this.newUser);
+      this.newUser = {
+        username: '',
+        apiKey: ''
+      };
     },
     
     deleteUser(userId) {
       this.$emit('delete-user', userId);
+    },
+    
+    formatTime(date) {
+      if (!date) return '';
+      return formatDistanceToNow(parseISO(date), { 
+        addSuffix: true, 
+        locale: zhCN 
+      });
     },
     
     previewTextFile(item) {
@@ -402,10 +438,6 @@ export default {
       }
     },
     
-    formatTime(time) {
-      return new Date(time).toLocaleString('zh-CN');
-    },
-    
     truncateText(text, maxLength) {
       if (text.length <= maxLength) {
         return text;
@@ -425,6 +457,12 @@ export default {
 </script>
 
 <style scoped>
+.main-view {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
 .main-tabs {
   border-radius: 15px;
   overflow: hidden;
@@ -441,6 +479,7 @@ export default {
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
   padding: 20px;
   transition: all 0.3s ease;
+  margin-bottom: 20px;
 }
 
 .card:hover {
@@ -500,6 +539,8 @@ export default {
 .clipboard-item-card {
   border-radius: 10px;
   transition: all 0.3s ease;
+  background: white;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
 }
 
 .clipboard-item-card:hover {

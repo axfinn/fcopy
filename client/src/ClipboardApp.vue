@@ -1,42 +1,278 @@
 <template>
   <div id="app">
-    <el-container>
-      <AppHeader 
-        :is-authenticated="isAuthenticated" 
-        @logout="logout"
-      />
-      
-      <GitHubInfo :github-info="githubInfo" />
-      
-      <el-main>
-        <LoginView 
-          v-if="!isAuthenticated" 
-          @authenticate="authenticate"
-        />
-        
-        <MainView 
-          v-else
-          :api-key="apiKey"
-          :clipboard-items="clipboardItems"
-          :access-logs="accessLogs"
-          :rate-limits="rateLimits"
+    <!-- 背景容器 -->
+    <div class="background-container">
+      <div 
+        v-for="(image, index) in backgroundImages" 
+        :key="index"
+        class="background-slide"
+        :style="{ 
+          backgroundImage: `url(${image})`,
+          opacity: currentBackgroundIndex === index ? 1 : 0,
+          transition: 'opacity 1s ease-in-out'
+        }"
+      ></div>
+    </div>
+    
+    <!-- 主要内容区域 -->
+    <div class="app-container">
+      <el-container class="main-container">
+        <AppHeader 
+          :is-authenticated="isAuthenticated" 
           :is-admin="isAdmin"
           :users="users"
-          @add-text-content="addTextContent"
-          @file-success="handleFileSuccess"
-          @file-error="handleFileError"
-          @copy-to-clipboard="copyToClipboard"
-          @download-file="downloadFileById"
-          @delete-item="deleteItem"
-          @add-user="addUser"
-          @delete-user="deleteUser"
-          @preview-text-file="previewTextFile"
-          @preview-pdf-file="previewPdfFile"
+          @logout="logout"
         />
-      </el-main>
-    </el-container>
+        
+        <el-main class="content-main">
+          <LoginView 
+            v-if="!isAuthenticated" 
+            @authenticate="authenticate"
+            @login-success="handleLoginSuccess"
+          />
+          
+          <MainView 
+            v-else
+            :api-key="apiKey"
+            :clipboard-items="clipboardItems"
+            :access-logs="accessLogs"
+            :rate-limits="rateLimits"
+            :is-admin="isAdmin"
+            :users="users"
+            :active-users="activeUsers"
+            @add-text-content="addTextContent"
+            @file-success="handleFileSuccess"
+            @file-error="handleFileError"
+            @copy-to-clipboard="copyToClipboard"
+            @download-file="downloadFileById"
+            @delete-item="deleteItem"
+            @add-user="addUser"
+            @delete-user="deleteUser"
+            @preview-text-file="previewTextFile"
+            @preview-pdf-file="previewPdfFile"
+          />
+        </el-main>
+        
+        <GitHubInfo 
+          :github-info="githubInfo" 
+          :is-authenticated="isAuthenticated"
+        />
+      </el-container>
+    </div>
   </div>
 </template>
+```
+
+```vue
+/Volumes/M20/code/docs/fcopy/client/src/ClipboardApp.vue
+```
+
+```css
+<<<<<<< SEARCH
+<style scoped>
+#app {
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  position: relative;
+  min-height: 100vh;
+  background-color: #f5f7fa;
+}
+
+.background-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: -1;
+  opacity: 0.9;
+  transition: background-image 1s ease-in-out;
+}
+
+.app-overlay {
+  position: relative;
+  min-height: 100vh;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(5px);
+}
+
+.el-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.el-main {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.el-header {
+  background-color: transparent !important;
+  padding: 0 !important;
+  height: auto !important;
+  line-height: normal !important;
+  position: relative !important;
+  z-index: 1000 !important;
+  width: 100%;
+}
+
+.el-footer {
+  background-color: transparent !important;
+  padding: 20px !important;
+  position: relative !important;
+  z-index: 999 !important;
+}
+
+/* 全局按钮样式优化 */
+.el-button {
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.el-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 全局卡片样式优化 */
+.el-card {
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.el-card:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* 全局输入框样式优化 */
+.el-input__inner,
+.el-textarea__inner {
+  border-radius: 10px;
+  border: 1px solid #dcdfe6;
+  transition: border-color 0.3s ease;
+}
+
+.el-input__inner:focus,
+.el-textarea__inner:focus {
+  border-color: #409EFF;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.1);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .el-main {
+    padding: 15px;
+  }
+  
+  .el-card {
+    border-radius: 12px;
+  }
+  
+  .el-button {
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+  
+  .el-input__inner {
+    font-size: 14px;
+  }
+  
+  .el-textarea__inner {
+    font-size: 14px;
+  }
+  
+  .content-preview {
+    font-size: 14px;
+  }
+  
+  .clipboard-meta {
+    flex-direction: column;
+    gap: 5px;
+    font-size: 12px;
+  }
+  
+  .el-card__body {
+    padding: 15px;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .header-content h1 {
+    font-size: 1.2rem;
+    text-align: center;
+    width: 100%;
+  }
+  
+  .auth-info {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .github-stats {
+    font-size: 14px;
+  }
+  
+  .stat-item {
+    padding: 3px 8px;
+  }
+  
+  .el-button {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+  
+  .el-input__inner {
+    font-size: 14px;
+  }
+  
+  .el-textarea__inner {
+    font-size: 14px;
+  }
+  
+  .content-preview {
+    font-size: 14px;
+  }
+  
+  .clipboard-meta {
+    flex-direction: column;
+    gap: 5px;
+    font-size: 12px;
+  }
+  
+  .el-card__body {
+    padding: 15px;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .header-content h1 {
+    font-size: 1.2rem;
+    text-align: center;
+    width: 100%;
+  }
+  
+  .auth-info {
+    justify-content: center;
+  }
+}
+</style>
 
 <script>
 import { io } from 'socket.io-client';
@@ -50,27 +286,31 @@ export default {
   },
   data() {
     return {
+      socket: null,
       isAuthenticated: false,
+      isAdmin: false,
       apiKey: '',
-      activeTab: 'add',
       clipboardItems: [],
       accessLogs: [],
-      rateLimits: [],
+      rateLimits: {},
       users: [],
-      isAdmin: false,
-      githubInfo: null,
-      socket: null,
-      accessChart: null,
+      activeUsers: [],
       newUser: {
         username: '',
         apiKey: ''
       },
       isAddingUser: false,
-      previewFile: {},
-      previewFileContent: '',
+      loadingActiveUsers: false,
+      textPreviewContent: '',
       textPreviewDialogVisible: false,
       pdfPreviewDialogVisible: false,
-      newTextContent: ''
+      newTextContent: '',
+      backgroundImages: [
+        'https://picsum.photos/1920/1080?random=1',
+        'https://picsum.photos/1920/1080?random=2',
+        'https://picsum.photos/1920/1080?random=3'
+      ],
+      currentBackground: ''
     };
   },
   mounted() {
@@ -86,8 +326,18 @@ export default {
     
     // 添加粘贴事件监听器
     document.addEventListener('paste', this.handlePaste);
+    
+    // 初始化背景图片
+    this.updateBackground();
+    setInterval(this.updateBackground, 30000); // 每30秒更换背景
   },
   methods: {
+    // 更新背景图片
+    updateBackground() {
+      const randomIndex = Math.floor(Math.random() * this.backgroundImages.length);
+      this.currentBackground = this.backgroundImages[randomIndex];
+    },
+    
     // 鉴权
     async authenticate(inputApiKey) {
       const authKey = inputApiKey || this.apiKey;
@@ -112,6 +362,13 @@ export default {
           this.fetchClipboardHistory();
           this.fetchAccessLogs();  // 获取访问日志
           this.fetchRateLimits();  // 获取限流状态
+          this.fetchActiveUsers(); // 获取活跃用户
+          
+          // 每10秒刷新一次活跃用户列表
+          if (this.activeUsersInterval) {
+            clearInterval(this.activeUsersInterval);
+          }
+          this.activeUsersInterval = setInterval(this.fetchActiveUsers, 10000);
           
           // 检查是否为管理员
           this.checkAdminStatus();
@@ -138,10 +395,15 @@ export default {
         this.socket.disconnect();
         this.socket = null;
       }
+      if (this.activeUsersInterval) {
+        clearInterval(this.activeUsersInterval);
+        this.activeUsersInterval = null;
+      }
       this.clipboardItems = [];
       this.accessLogs = [];
       this.rateLimits = [];
       this.users = [];
+      this.activeUsers = [];
       this.isAdmin = false;
       
       // 清理图表
@@ -207,6 +469,32 @@ export default {
       } catch (error) {
         console.error('获取限流状态失败:', error);
         // 不显示错误消息，因为这可能是一个可选功能
+      }
+    },
+
+    // 获取活跃用户列表
+    async fetchActiveUsers() {
+      try {
+        const response = await fetch('/api/active-users', {
+          headers: {
+            'X-API-Key': this.apiKey
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('获取活跃用户失败');
+        }
+        
+        const result = await response.json();
+        // 添加连接时间信息
+        const now = new Date();
+        this.activeUsers = result.data.map(user => ({
+          ...user,
+          connectionTime: now
+        }));
+      } catch (error) {
+        console.error('获取活跃用户失败:', error);
+        // 不显示错误消息，因为普通用户没有权限访问此接口
       }
     },
 
@@ -618,36 +906,46 @@ export default {
 
 <style scoped>
 #app {
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
   min-height: 100vh;
-  padding: 20px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
+  padding: 0;
+  margin: 0;
+}
+
+.background-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: -1;
+  transition: background-image 1s ease-in-out;
+}
+
+.app-overlay {
   min-height: 100vh;
+  padding: 0;
+  margin: 0;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(5px);
 }
 
 .el-container {
-  height: 100%;
-  background: transparent;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+  min-height: 100vh;
+  padding: 0;
+  margin: 0;
 }
 
 .el-main {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
+  padding: 20px;
+  margin: 0;
 }
 
+/* 保持原有媒体查询样式不变 */
 @media (max-width: 768px) {
   #app {
     padding: 10px;
@@ -659,18 +957,6 @@ export default {
 }
 </style>
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  background-color: #f56c6c !important;
-  border-color: #f56c6c !important;
-  color: white !important;
-}
-
-.logout-button {
-  cursor: pointer !important;
-  pointer-events: auto !important;
-  z-index: 1002 !important;
-  position: relative !important;
-  touch-action: manipulation;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
   background-color: #f56c6c !important;
   border-color: #f56c6c !important;
   color: white !important;
