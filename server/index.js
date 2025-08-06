@@ -18,6 +18,13 @@ const io = socketIo(server);
 const API_KEY = process.env.CLIPBOARD_API_KEY || 'default-api-key';
 console.log('API 密钥已设置:', API_KEY !== 'default-api-key' ? '是 (来自环境变量或.env文件)' : '否 (使用默认值)');
 
+// 请求频率限制配置 (优先从环境变量获取，否则使用默认值)
+const RATE_LIMIT_REQUESTS = parseInt(process.env.RATE_LIMIT_REQUESTS) || 10;
+const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 60000; // 1分钟
+const RATE_LIMIT_BLOCK_DURATION_MS = parseInt(process.env.RATE_LIMIT_BLOCK_DURATION_MS) || 600000; // 10分钟
+
+console.log(`请求频率限制已设置: ${RATE_LIMIT_REQUESTS} 次/${RATE_LIMIT_WINDOW_MS/1000}秒, 封禁时长: ${RATE_LIMIT_BLOCK_DURATION_MS/1000}秒`);
+
 // 配置文件上传
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -138,21 +145,21 @@ const rateLimitAndLog = (req, res, next) => {
     }
     
     // 更新请求计数
-    const oneMinuteAgo = new Date(currentTime.getTime() - 60000);
+    const timeWindowAgo = new Date(currentTime.getTime() - RATE_LIMIT_WINDOW_MS);
     let newCount = 1;
     
     if (row && row.last_request_time) {
       const lastRequestTime = new Date(row.last_request_time);
-      // 如果上次请求在1分钟内，则增加计数，否则重置为1
-      if (lastRequestTime > oneMinuteAgo) {
+      // 如果上次请求在时间窗口内，则增加计数，否则重置为1
+      if (lastRequestTime > timeWindowAgo) {
         newCount = (row.request_count || 0) + 1;
       }
     }
     
-    // 如果请求次数超过10次，则限制访问10分钟
+    // 如果请求次数超过限制，则限制访问
     let blockedUntil = null;
-    if (newCount > 10) {
-      blockedUntil = new Date(currentTime.getTime() + 10 * 60000); // 10分钟后
+    if (newCount > RATE_LIMIT_REQUESTS) {
+      blockedUntil = new Date(currentTime.getTime() + RATE_LIMIT_BLOCK_DURATION_MS);
     }
     
     // 更新或插入限流记录
