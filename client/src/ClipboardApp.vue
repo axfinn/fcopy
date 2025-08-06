@@ -22,6 +22,38 @@
         </div>
       </el-header>
       
+      <!-- GitHub项目信息展示在首页 -->
+      <div v-if="githubInfo" class="github-info-container">
+        <el-card class="github-info-card" shadow="always">
+          <div class="github-info-content">
+            <div class="github-info-header">
+              <i class="el-icon-star-off"></i>
+              <h3>GitHub 项目信息</h3>
+            </div>
+            <div class="github-stats">
+              <span class="stat-item">
+                <i class="el-icon-collection"></i> {{ githubInfo.stars }} Stars
+              </span>
+              <span class="stat-item">
+                <i class="el-icon-share"></i> {{ githubInfo.forks }} Forks
+              </span>
+              <span class="stat-item">
+                <i class="el-icon-info"></i> {{ githubInfo.version }}
+              </span>
+            </div>
+            <el-button 
+              type="primary" 
+              @click="openGithubRepo"
+              round
+              size="small"
+              class="github-button"
+            >
+              <i class="el-icon-link"></i> 查看 GitHub 仓库
+            </el-button>
+          </div>
+        </el-card>
+      </div>
+      
       <el-main>
         <!-- API 密钥输入 -->
         <div v-if="!isAuthenticated" class="auth-container">
@@ -51,31 +83,6 @@
               <p><i class="el-icon-info"></i> 管理员密钥可访问用户和日志</p>
             </div>
           </el-card>
-        </div>
-        <!-- GitHub项目信息 -->
-        <div class="github-info card" v-if="githubInfo">
-          <div class="card-header">
-            <h3><i class="el-icon-star-off"></i> GitHub 项目信息</h3>
-          </div>
-          <div class="github-stats">
-            <span class="stat-item">
-              <i class="el-icon-collection"></i> {{ githubInfo.stars }} Stars
-            </span>
-            <span class="stat-item">
-              <i class="el-icon-share"></i> {{ githubInfo.forks }} Forks
-            </span>
-            <span class="stat-item">
-              <i class="el-icon-info"></i> {{ githubInfo.version }}
-            </span>
-          </div>
-          <el-button 
-            type="default" 
-            @click="openGithubRepo"
-            round
-            size="small"
-          >
-            <i class="el-icon-link"></i> 查看 GitHub 仓库
-          </el-button>
         </div>
         
         <!-- 主功能界面 -->
@@ -154,31 +161,7 @@
                     </ul>
                   </div>
                   
-                  <!-- GitHub项目信息 -->
-                  <div class="github-info card" v-if="githubInfo">
-                    <div class="card-header">
-                      <h3><i class="el-icon-star-off"></i> GitHub 项目信息</h3>
-                    </div>
-                    <div class="github-stats">
-                      <span class="stat-item">
-                        <i class="el-icon-collection"></i> {{ githubInfo.stars }} Stars
-                      </span>
-                      <span class="stat-item">
-                        <i class="el-icon-share"></i> {{ githubInfo.forks }} Forks
-                      </span>
-                      <span class="stat-item">
-                        <i class="el-icon-info"></i> {{ githubInfo.version }}
-                      </span>
-                    </div>
-                    <el-button 
-                      type="default" 
-                      @click="openGithubRepo"
-                      round
-                      size="small"
-                    >
-                      <i class="el-icon-link"></i> 查看 GitHub 仓库
-                    </el-button>
-                  </div>
+                  <!-- 原来的GitHub信息移除 -->
                 </el-col>
               </el-row>
             </el-tab-pane>
@@ -1216,6 +1199,67 @@ export default {
   z-index: 9997 !important;
 }
 
+.github-info-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  padding: 0 20px;
+}
+
+.github-info-card {
+  width: 100%;
+  max-width: 500px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: none;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.github-info-content {
+  text-align: center;
+}
+
+.github-info-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.github-info-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.github-stats {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin: 20px 0;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background-color: #f8f9fa;
+  padding: 8px 15px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.stat-item i {
+  color: #409EFF;
+}
+
+.github-button {
+  margin-top: 10px;
+}
+
 .header-content {
   display: flex;
   justify-content: space-between;
@@ -1247,16 +1291,11 @@ export default {
   display: flex;
   align-items: center;
   margin: 10px 0;
-  position: relative;
-  z-index: 101;
-}
-
-.auth-info {
-  display: flex;
-  align-items: center;
-  margin: 10px 0;
-  position: relative;
-  z-index: 9998;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1001;
 }
 
 .header-content .auth-info .el-button {
@@ -1272,7 +1311,7 @@ export default {
 .logout-button {
   cursor: pointer !important;
   pointer-events: auto !important;
-  z-index: 9999 !important;
+  z-index: 1002 !important;
   position: relative !important;
   touch-action: manipulation;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
@@ -1673,6 +1712,9 @@ export default {
     margin: 0;
     position: relative;
     z-index: 1001;
+    right: auto;
+    top: auto;
+    transform: none;
   }
   
   .logout-button {
@@ -1737,7 +1779,10 @@ export default {
   }
   
   .auth-info {
-    position: relative;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
     z-index: 9998;
   }
   
