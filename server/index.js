@@ -50,13 +50,26 @@ const upload = multer({
 
 // 中间件
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, '../dist')));
 
-// 添加对根路径的处理
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
-});
+// 静态文件服务 - 添加缓存策略
+app.use(express.static(path.join(__dirname, '../dist'), {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) {
+      // HTML文件不缓存
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    } else if (path.endsWith('.js') || path.endsWith('.css')) {
+      // JS和CSS文件缓存1年
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+    } else if (path.match(/\.(jpg|jpeg|png|gif|ico|svg)$/)) {
+      // 图片文件缓存1年
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+    }
+  }
+}));
 
+// 保持原有的上传目录静态服务
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // 健康检查端点

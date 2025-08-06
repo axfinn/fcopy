@@ -7,7 +7,8 @@ module.exports = {
   entry: './client/src/main.js',
   output: {
     path: path.resolve(__dirname, '../dist'),
-    filename: 'bundle.js'
+    filename: 'bundle.[contenthash].js',
+    clean: true
   },
   module: {
     rules: [
@@ -24,7 +25,10 @@ module.exports = {
       },
       {
         test: /\.(png|jpe?g|gif|svg)(\?.*)?$/,
-        type: 'asset/resource'
+        type: 'asset/resource',
+        generator: {
+          filename: 'img/[name].[contenthash:8][ext]'
+        }
       }
     ]
   },
@@ -33,7 +37,13 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: './client/src/index.html',
       filename: 'index.html',
-      inject: true
+      inject: true,
+      minify: {
+        removeComments: true,
+        collapseWhitespace: true,
+        removeAttributeQuotes: true
+      },
+      chunkSortMode: 'dependency'
     })
   ],
   resolve: {
