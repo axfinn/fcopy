@@ -72,8 +72,8 @@
         <div v-else>
           <el-tabs type="border-card" class="main-tabs" v-model="activeTab">
             <el-tab-pane label="添加内容" name="add">
-              <el-row :gutter="30">
-                <el-col :span="12">
+              <el-row :gutter="20">
+                <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
                   <div class="clipboard-input card">
                     <div class="card-header">
                       <h3><i class="el-icon-edit"></i> 添加文本</h3>
@@ -129,7 +129,7 @@
                   </div>
                 </el-col>
                 
-                <el-col :span="12">
+                <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
                   <div class="instructions card">
                     <div class="card-header">
                       <h3><i class="el-icon-guide"></i> 使用说明</h3>
@@ -288,7 +288,7 @@
                       </el-table>
                     </div>
                   </el-col>
-                  <el-col :span="12">
+                  <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
                     <div class="card analytics-card">
                       <div class="card-header">
                         <h3><i class="el-icon-pie-chart"></i> 访问统计图表</h3>
@@ -298,7 +298,7 @@
                       </div>
                     </div>
                   </el-col>
-                  <el-col :span="12">
+                  <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
                     <div class="card analytics-card">
                       <div class="card-header">
                         <h3><i class="el-icon-warning-outline"></i> 限流状态</h3>
@@ -337,7 +337,7 @@
             <el-tab-pane label="用户管理" name="userManagement" v-if="isAdmin">
               <div class="user-management-container">
                 <el-row :gutter="20">
-                  <el-col :span="12">
+                  <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
                     <div class="card user-form-card">
                       <div class="card-header">
                         <h3><i class="el-icon-plus"></i> 添加新用户</h3>
@@ -355,7 +355,7 @@
                       </el-form>
                     </div>
                   </el-col>
-                  <el-col :span="12">
+                  <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="12">
                     <div class="card user-list-card">
                       <div class="card-header">
                         <h3><i class="el-icon-user"></i> 用户列表</h3>
@@ -1159,10 +1159,12 @@ export default {
   text-align: center;
   color: #2c3e50;
   margin-top: 0;
-  height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
   padding: 20px;
   box-sizing: border-box;
+}
+</style>
 }
 
 .el-container {
@@ -1171,11 +1173,13 @@ export default {
 }
 
 .el-header {
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
   border-radius: 10px;
   margin-bottom: 20px;
-  backdrop-filter: blur(10px);
+  padding: 0 20px;
+  height: auto !important;
+  min-height: 60px;
 }
 
 .header-content {
@@ -1187,15 +1191,31 @@ export default {
 
 .header-content h1 {
   margin: 0;
-  color: #409EFF;
-  font-size: 1.8rem;
+  color: white;
+  font-size: 1.5rem;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.header-content h1 i {
+  margin-right: 10px;
+}
+
+.auth-info {
+  display: flex;
+  align-items: center;
+}
+
+.header-content .auth-info .el-button {
+  width: auto;
+  padding: 5px 15px;
+  font-size: 12px;
 }
 
 .auth-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 80vh;
+  min-height: 70vh;
 }
 
 .auth-card {
@@ -1543,5 +1563,102 @@ export default {
   .stat-item {
     justify-content: center;
   }
+  
+  .el-table {
+    font-size: 12px;
+  }
+  
+  .el-table th, 
+  .el-table td {
+    padding: 5px 0;
+  }
+  
+  .el-table .cell {
+    padding: 0 5px;
+  }
+  
+  .el-dialog {
+    width: 95%;
+  }
+  
+  .el-message-box {
+    width: 90%;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+  
+  .auth-info {
+    display: flex;
+    justify-content: center;
+  }
+  
+  .card-header h3 {
+    font-size: 1.2rem;
+  }
+  
+  .el-tabs__item {
+    font-size: 14px;
+    padding: 0 10px;
+  }
+  
+  .el-upload-dragger {
+    padding: 20px 10px;
+  }
+  
+  .el-alert {
+    padding: 10px;
+  }
+  
+  .el-alert__content {
+    padding: 0 5px;
+  }
+  
+  .el-alert__title {
+    font-size: 13px;
+  }
+  
+  .el-alert__description {
+    font-size: 12px;
+  }
 }
-</style>
+
+@media (max-width: 480px) {
+  .github-stats {
+    font-size: 14px;
+  }
+  
+  .stat-item {
+    padding: 3px 8px;
+  }
+  
+  .el-button {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+  
+  .el-input__inner {
+    font-size: 14px;
+  }
+  
+  .el-textarea__inner {
+    font-size: 14px;
+  }
+  
+  .content-preview {
+    font-size: 14px;
+  }
+  
+  .clipboard-meta {
+    flex-direction: column;
+    gap: 5px;
+    font-size: 12px;
+  }
+  
+  .el-card__body {
+    padding: 15px;
+  }
+}
