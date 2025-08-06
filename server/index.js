@@ -319,6 +319,7 @@ function initializeDatabase(database) {
   
   // 插入默认管理员用户（如果不存在）
   const adminApiKey = process.env.ADMIN_API_KEY || 'admin_secret_key';
+  console.log('管理员API密钥已设置:', adminApiKey !== 'admin_secret_key' ? '是 (来自环境变量或.env文件)' : '否 (使用默认值)');
   database.run(`INSERT OR IGNORE INTO users (username, api_key, is_admin) VALUES (?, ?, ?)`, 
     ['admin', adminApiKey, true], 
     (err) => {
@@ -338,6 +339,7 @@ function initializeDatabase(database) {
         console.error('创建默认用户失败:', err.message);
       } else {
         console.log('默认用户已创建或已存在');
+        console.log('当前配置的API密钥:', defaultApiKey);
       }
   });
 }

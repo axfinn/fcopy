@@ -5,7 +5,13 @@
         <div class="header-content">
           <h1><i class="el-icon-copy-document"></i> 跨平台剪贴板同步工具</h1>
           <div v-if="isAuthenticated" class="auth-info">
-            <el-button type="danger" size="small" @click="logout" round>
+            <el-button 
+              type="danger" 
+              size="small" 
+              @click="logout" 
+              round
+              class="logout-button"
+            >
               <i class="el-icon-switch-button"></i> 清除密钥
             </el-button>
           </div>
@@ -29,41 +35,16 @@
             />
             <el-button 
               type="primary" 
-              @click="authenticate" 
-              :disabled="!apiKey"
-              size="large"
+              @click="authenticate"
               class="auth-button"
-              round
+              size="large"
             >
-              <i class="el-icon-right"></i> 进入系统
+              <i class="el-icon-key"></i> 鉴权登录
             </el-button>
             
             <div class="auth-hint">
-              <p><i class="el-icon-info"></i> 为保护您的数据安全，请输入正确的 API 密钥。</p>
-            </div>
-            
-            <!-- GitHub项目信息 -->
-            <div class="github-info" v-if="githubInfo">
-              <h3><i class="el-icon-star-off"></i> GitHub 项目信息</h3>
-              <div class="github-stats">
-                <span class="stat-item">
-                  <i class="el-icon-collection"></i> {{ githubInfo.stars }} Stars
-                </span>
-                <span class="stat-item">
-                  <i class="el-icon-share"></i> {{ githubInfo.forks }} Forks
-                </span>
-                <span class="stat-item">
-                  <i class="el-icon-info"></i> {{ githubInfo.version }}
-                </span>
-              </div>
-              <el-button 
-                type="default" 
-                @click="openGithubRepo"
-                round
-                size="small"
-              >
-                <i class="el-icon-link"></i> 查看 GitHub 仓库
-              </el-button>
+              <p><i class="el-icon-info"></i> 提示：默认密钥为 <code>default-api-key</code></p>
+              <p><i class="el-icon-info"></i> 管理员密钥可访问用户和日志</p>
             </div>
           </el-card>
         </div>
@@ -1235,7 +1216,15 @@ export default {
   cursor: pointer;
   position: relative;
   z-index: 102;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.logout-button {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  z-index: 9999 !important;
+  position: relative !important;
+  touch-action: manipulation;
 }
 
 .auth-container {

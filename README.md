@@ -57,6 +57,10 @@ CLEANUP_DAYS=7
 
 或者通过环境变量设置。
 
+系统会自动创建两个默认用户：
+1. 普通用户：用户名 `default`，API密钥为 `CLIPBOARD_API_KEY` 的值（默认为 `default-api-key`）
+2. 管理员用户：用户名 `admin`，API密钥为 `ADMIN_API_KEY` 的值（默认为 `admin_secret_key`）
+
 ### 配置请求频率限制
 
 可以通过以下环境变量调整请求频率限制：
