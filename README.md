@@ -123,7 +123,7 @@ chmod +x deploy.sh
 
 | 微信赞赏 | 支付宝 |
 | :------: | :----: |
-| ![微信](img/wechat.png) | ![支付宝](img/alipay.png) |
+| ![微信](img/wxpay.JPG) | ![支付宝](img/alipay.JPG) |
 
 ## 许可证
 
