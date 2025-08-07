@@ -5,6 +5,39 @@
         <h1><i class="el-icon-copy-document"></i> 跨平台剪贴板同步工具</h1>
       </div>
       <div class="header-right">
+        <div class="settings-panel" v-if="isAuthenticated">
+          <el-popover
+            placement="bottom"
+            :width="200"
+            trigger="click"
+          >
+            <template #reference>
+              <el-button 
+                type="info" 
+                size="small" 
+                circle
+                class="settings-button"
+              >
+                <i class="el-icon-setting"></i>
+              </el-button>
+            </template>
+            <div class="settings-content">
+              <div class="setting-item">
+                <label>背景透明度</label>
+                <el-slider
+                  v-model="backgroundOpacity"
+                  :min="0.1"
+                  :max="1"
+                  :step="0.05"
+                  @change="onOpacityChange"
+                  :show-tooltip="true"
+                />
+                <div class="opacity-value">{{ Math.round(backgroundOpacity * 100) }}%</div>
+              </div>
+            </div>
+          </el-popover>
+        </div>       
+        
         <div class="auth-info" v-if="isAuthenticated">
           <el-button 
             type="danger" 
@@ -22,6 +55,8 @@
 </template>
 
 <script>
+import store from '../store';
+
 export default {
   name: 'AppHeader',
   props: {
@@ -31,10 +66,29 @@ export default {
     }
   },
   emits: ['logout'],
+  data() {
+    return {
+      backgroundOpacity: store.state.backgroundOpacity || 0.95
+    };
+  },
   methods: {
     logout() {
       this.$emit('logout');
+    },
+    
+    onOpacityChange(value) {
+      store.setBackgroundOpacity(value);
+      // 触发自定义事件通知其他组件背景透明度已更改
+      window.dispatchEvent(new CustomEvent('backgroundOpacityChange', { detail: value }));
     }
+  },
+  
+  mounted() {
+    // 监听背景透明度变化事件
+    this.backgroundOpacity = store.state.backgroundOpacity;
+    window.addEventListener('backgroundOpacityChange', (event) => {
+      this.backgroundOpacity = event.detail;
+    });
   }
 }
 </script>
@@ -74,6 +128,7 @@ export default {
 .header-right {
   display: flex;
   align-items: center;
+  gap: 10px;
 }
 
 .header-content h1 {
@@ -89,6 +144,46 @@ export default {
   color: #409EFF;
 }
 
+.settings-panel {
+  display: flex;
+  align-items: center;
+}
+
+.settings-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.settings-content {
+  padding: 10px 0;
+}
+
+.setting-item {
+  margin-bottom: 15px;
+}
+
+.setting-item label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+}
+
+.setting-item:last-child {
+  margin-bottom: 0;
+}
+
+.opacity-value {
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+  margin-top: 5px;
+}
+
 .auth-info {
   display: flex;
   align-items: center;
@@ -99,64 +194,31 @@ export default {
 
 .logout-button {
   width: auto;
-  padding: 8px 16px;
-  font-size: 12px;
-  cursor: pointer;
-  position: relative;
-  z-index: 103;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   background-color: #f56c6c !important;
   border-color: #f56c6c !important;
   color: white !important;
-  pointer-events: auto !important;
-  margin: 0 !important;
+  box-shadow: 0 2px 8px rgba(245, 108, 108, 0.3);
 }
 
-@media (max-width: 768px) {
-  .header-content {
-    flex-direction: row;
-    text-align: left;
-    gap: 10px;
-    padding: 15px 15px;
-  }
-  
-  .header-content h1 {
-    font-size: 1.2rem;
-    margin: 0;
-    text-align: left;
-    width: auto;
-    flex: 1;
-  }
-  
-  .auth-info {
-    display: flex;
-    justify-content: flex-end;
-    margin: 0;
-    position: relative;
-    z-index: 102;
-  }
-  
-  .logout-button {
-    padding: 8px 16px;
-    font-size: 12px;
-    cursor: pointer;
-    position: relative;
-    z-index: 103;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-  }
+.settings-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background-color: #409EFF !important;
+  border-color: #409EFF !important;
 }
 
-@media (min-width: 769px) {
-  .logout-button {
-    padding: 10px 20px;
-    font-size: 13px;
-    min-width: 100px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-    z-index: 103;
-  }
-  
-  .auth-info {
-    z-index: 102;
-  }
+.logout-button:hover {
+  background-color: #ff4d4f !important;
+  border-color: #ff4d4f !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 108, 108, 0.4);
+}
+
+.logout-button i {
+  margin-right: 5px;
 }
 </style>

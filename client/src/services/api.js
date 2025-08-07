@@ -24,7 +24,8 @@ class ClipboardApi {
     const response = await fetch(url, config);
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
     
     return response.json();
@@ -82,62 +83,17 @@ class ClipboardApi {
     });
   }
 
-  // 下载文件
-  async downloadFile(fileId) {
-    const response = await fetch(`${this.baseUrl}/clipboard/download/${fileId}`, {
-      headers: {
-        'X-API-Key': this.apiKey,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || '下载失败');
-    }
-    
-    return response;
+  // 获取活跃用户
+  getActiveUsers() {
+    return this.request('/active-users');
   }
 
-  // 获取访问日志
-  getAccessLogs(params = {}) {
-    const searchParams = new URLSearchParams();
-    
-    // 添加分页参数
-    if (params.page !== undefined) {
-      searchParams.append('page', params.page);
-    } else {
-      searchParams.append('page', 1);
-    }
-    
-    if (params.size !== undefined) {
-      searchParams.append('size', params.size);
-    } else {
-      searchParams.append('size', 10);
-    }
-    
-    // 添加搜索参数
-    if (params.search !== undefined && params.search !== '') {
-      searchParams.append('search', params.search);
-    }
-    
-    const queryString = searchParams.toString();
-    const url = queryString ? `/access-logs/access?${queryString}` : '/access-logs/access';
-    
-    return this.request(url);
-  }
-
-  // 获取用户信息
-  getUserInfo() {
-    return this.request('/users/me');
-  }
-
-  // 获取所有用户（仅管理员）
-  getAllUsers() {
+  // 获取所有用户 (仅管理员)
+  getUsers() {
     return this.request('/users');
   }
 
-  // 添加用户
+  // 添加用户 (仅管理员)
   addUser(userData) {
     return this.request('/users', {
       method: 'POST',
@@ -145,25 +101,56 @@ class ClipboardApi {
     });
   }
 
-  // 删除用户
+  // 删除用户 (仅管理员)
   deleteUser(userId) {
     return this.request(`/users/${userId}`, {
       method: 'DELETE'
     });
   }
 
-  // 获取活跃用户
-  getActiveUsers(params = {}) {
+  // 获取访问日志 (仅管理员)
+  getAccessLogs(params = {}) {
+    // 构建查询参数
     const searchParams = new URLSearchParams();
     
-    // 复制参数到URLSearchParams对象
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined) {
-        searchParams.append(key, value);
+    // 添加分页参数
+    if (params.page !== undefined) {
+      searchParams.append('page', params.page);
+    } else {
+      searchParams.append('page', 1); // 默认第一页
+    }
+    
+    if (params.size !== undefined) {
+      searchParams.append('size', params.size);
+    } else {
+      searchParams.append('size', 10); // 默认每页10条
+    }
+    
+    const queryString = searchParams.toString();
+    const url = queryString ? `/logs/access?${queryString}` : '/logs/access';
+    
+    return this.request(url);
+  }
+
+  // 获取GitHub信息
+  getGithubInfo() {
+    return this.request('/github-info');
+  }
+
+  // 下载文件
+  async downloadFile(fileId) {
+    const response = await fetch(`${this.baseUrl}/clipboard/file/${fileId}`, {
+      headers: {
+        'X-API-Key': this.apiKey
       }
     });
     
-    return this.request(`/active-users?${searchParams.toString()}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || '下载失败');
+    }
+    
+    return response;
   }
 }
 

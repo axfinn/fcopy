@@ -1,15 +1,13 @@
 const config = require('../config/app.js');
 const database = require('../services/database.js');
+const { getRealIpAddress } = require('../utils/ipUtils.js');
 
 // 访问记录和限流中间件
 const rateLimitAndLog = (req, res, next) => {
   const db = database.getInstance();
   
   // 获取客户端真实IP地址
-  const ipAddress = req.headers['x-forwarded-for'] || 
-                   req.headers['x-real-ip'] || 
-                   req.connection.remoteAddress || 
-                   req.ip;
+  const ipAddress = getRealIpAddress(req);
   
   const currentTime = new Date();
   

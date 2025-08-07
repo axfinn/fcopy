@@ -36,9 +36,12 @@ router.post('/auth', (req, res) => {
 // 获取当前用户信息
 router.get('/me', authenticateApiKey, (req, res) => {
   res.json({
-    id: req.user.id,
-    username: req.user.username,
-    is_admin: req.user.is_admin
+    success: true,
+    data: {
+      id: req.user.id,
+      username: req.user.username,
+      admin: req.user.is_admin === 1
+    }
   });
 });
 
@@ -49,10 +52,13 @@ router.get('/', authenticateApiKey, requireAdmin, (req, res) => {
   const sql = 'SELECT id, username, is_admin FROM users ORDER BY id';
   db.all(sql, [], (err, rows) => {
     if (err) {
-      res.status(500).json({ error: err.message });
-      return;
+      return res.status(500).json({ success: false, message: '服务器内部错误', error: err.message });
     }
-    res.json({ data: rows });
+    res.json({ 
+      success: true,
+      message: '获取用户列表成功',
+      data: rows 
+    });
   });
 });
 
@@ -60,22 +66,31 @@ router.get('/', authenticateApiKey, requireAdmin, (req, res) => {
 router.post('/', authenticateApiKey, requireAdmin, (req, res) => {
   const db = database.getInstance();
   
-  const { username, apiKey } = req.body;
+  // 检查请求体中的字段
+  const { username, apiKey, api_key } = req.body;
+  const key = apiKey || api_key; // 兼容两种可能的字段名
   
-  if (!username || !apiKey) {
-    return res.status(400).json({ error: '用户名和API密钥不能为空' });
+  if (!username || !key) {
+    return res.status(400).json({ success: false, message: '用户名和API密钥不能为空' });
   }
   
   const sql = 'INSERT INTO users (username, api_key, is_admin) VALUES (?, ?, ?)';
-  db.run(sql, [username, apiKey, false], function(err) {
+  db.run(sql, [username, key, false], function(err) {
     if (err) {
       if (err.message.includes('UNIQUE constraint failed')) {
-        return res.status(400).json({ error: '用户名或API密钥已存在' });
+        return res.status(400).json({ success: false, message: '用户名或API密钥已存在' });
       }
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ success: false, message: '服务器内部错误', error: err.message });
     }
     
-    res.json({ id: this.lastID, username, message: '用户创建成功' });
+    res.json({ 
+      success: true,
+      message: '用户创建成功',
+      data: {
+        id: this.lastID,
+        username
+      }
+    });
   });
 });
 
@@ -87,20 +102,54 @@ router.delete('/:id', authenticateApiKey, requireAdmin, (req, res) => {
   
   // 确保用户不能删除自己
   if (userId == req.user.id) {
-    return res.status(400).json({ error: '不能删除当前用户' });
+    return res.status(400).json({ success: false, error: '不能删除当前用户' });
   }
   
   const sql = 'DELETE FROM users WHERE id = ?';
   db.run(sql, [userId], function(err) {
     if (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ success: false, error: err.message });
     }
     
     if (this.changes === 0) {
-      return res.status(404).json({ error: '用户不存在' });
+      return res.status(404).json({ success: false, error: '用户不存在' });
     }
     
-    res.json({ message: '用户删除成功' });
+    res.json({ success: true, message: '用户删除成功' });
+  });
+});
+
+// 更新用户API密钥 (仅管理员可访问)
+router.put('/:id/apikey', authenticateApiKey, requireAdmin, (req, res) => {
+  const db = database.getInstance();
+  
+  const userId = req.params.id;
+  const { apiKey } = req.body;
+  
+  // 确保提供了新的API密钥
+  if (!apiKey) {
+    return res.status(400).json({ success: false, error: 'API密钥不能为空' });
+  }
+  
+  // 确保用户不能修改自己的API密钥
+  if (userId == req.user.id) {
+    return res.status(400).json({ success: false, error: '不能修改当前用户的API密钥' });
+  }
+  
+  const sql = 'UPDATE users SET api_key = ? WHERE id = ?';
+  db.run(sql, [apiKey, userId], function(err) {
+    if (err) {
+      if (err.message.includes('UNIQUE constraint failed')) {
+        return res.status(400).json({ success: false, error: '该API密钥已被其他用户使用' });
+      }
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    
+    if (this.changes === 0) {
+      return res.status(404).json({ success: false, error: '用户不存在' });
+    }
+    
+    res.json({ success: true, message: '用户API密钥更新成功' });
   });
 });
 

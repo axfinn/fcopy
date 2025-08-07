@@ -1,12 +1,14 @@
 <template>
   <div class="main-view">
-    <el-tabs v-model="activeTab" @tab-click="handleTabChange" class="main-tabs" stretch>
+    <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="main-tabs" stretch>
       <!-- 剪贴板内容标签页 -->
       <el-tab-pane label="剪贴板" name="clipboard">
         <el-row :gutter="20">
           <el-col :span="24">
             <ClipboardHistoryImproved 
               :api-key="apiKey"
+              :clipboard-items="clipboardItems"
+              @update-clipboard-items="$emit('update-clipboard-items', $event)"
               @copy-to-clipboard="$emit('copy-to-clipboard', $event)"
               @download-file="(fileId, fileName, mimeType) => $emit('download-file', fileId, fileName, mimeType)"
               @preview-text-file="$emit('preview-text-file', $event)"
@@ -19,12 +21,16 @@
       
       <!-- 添加内容标签页 -->
       <el-tab-pane label="添加内容" name="add">
-        <AddContent 
-          :api-key="apiKey"
-          @text-added="$emit('add-text-content', $event)"
-          @file-success="$emit('file-success', $event)"
-          @file-error="$emit('file-error', $event)"
-        />
+        <el-row :gutter="20">
+          <el-col :span="24">
+            <AddContent 
+              :api-key="apiKey"
+              @text-added="$emit('add-text-content', $event)"
+              @file-success="$emit('file-success', $event)"
+              @file-error="$emit('file-error', $event)"
+            />
+          </el-col>
+        </el-row>
       </el-tab-pane>
       
       <!-- 管理面板标签页 (仅管理员可见) -->
@@ -35,9 +41,12 @@
               :users="users"
               :active-users="activeUsers"
               :access-logs="accessLogs"
+              :current-page="currentPage"
+              :page-size="pageSize"
+              :total-items="totalItems"
               @add-user="$emit('add-user', $event)"
               @delete-user="$emit('delete-user', $event)"
-              @update-access-logs="updateAccessLogs"
+              @page-change="$emit('page-change', $event)"
             />
           </el-col>
         </el-row>
@@ -73,6 +82,7 @@ export default {
   },
   props: {
     apiKey: String,
+    clipboardItems: Array,
     accessLogs: Array,
     rateLimits: Object,
     isAdmin: Boolean,
@@ -98,82 +108,79 @@ export default {
     };
   },
   methods: {
-    handleTabChange(tab) {
-      this.$emit('tab-change', tab);
+    handlePageChange(page) {
+      this.$emit('page-change', page);
     },
     
-    // 更新访问日志（带分页参数）
-    updateAccessLogs(params) {
-      this.$emit('update-access-logs', params);
-    },
-    
-    // 处理分页变化
-    handlePaginationChange(page) {
-      this.$emit('update:current-page', page);
-      // 可以在这里添加其他分页逻辑
-    },
-    
-    // 处理每页数量变化
     handleSizeChange(size) {
-      this.$emit('update:page-size', size);
-      // 可以在这里添加其他分页逻辑
+      this.$emit('size-change', size);
+    },
+    
+    handleSearch(keyword) {
+      this.$emit('search', keyword);
+    },
+    
+    handleTabChange(name) {
+      this.$emit('tab-change', name);
+    },
+    
+    fetchActiveUsers() {
+      this.$emit('fetch-active-users');
     }
   },
-  emits: [
-    'add-text-content',
-    'file-success',
-    'file-error',
-    'copy-to-clipboard',
-    'download-file',
-    'delete-item',
-    'add-user',
-    'delete-user',
-    'preview-text-file',
-    'preview-pdf-file',
-    'update-clipboard-items',
-    'tab-change',
-    'update-access-logs',
-    // 分页相关emits
-    'update:current-page',
-    'update:page-size'
-  ]
-}
+  watch: {
+    // 当用户切换到"我的连接"标签页时，自动获取活跃用户数据
+    activeTab: {
+      handler(newValue) {
+        if (newValue === 'user-info' && this.activeUsers.length === 0) {
+          this.fetchActiveUsers();
+        }
+      },
+      immediate: false
+    }
+  },
+};
 </script>
 
 <style scoped>
 .main-view {
-  width: 100%;
-  padding: 0;
-  margin: 0;
-  position: relative;
-  z-index: 50;
+  padding: 20px;
+  background-color: #f5f5f5;
+  min-height: calc(100vh - 120px);
 }
 
 .main-tabs {
-  border-radius: 15px;
-  overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border: none;
-  flex: 1;
-  position: relative;
-  z-index: 51;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
-.main-tabs ::v-deep(.el-tabs__content) {
-  position: relative;
-  z-index: 52;
+.card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  transition: all 0.3s ease;
+  margin-bottom: 20px;
 }
 
-.main-tabs ::v-deep(.el-tab-pane) {
-  position: relative;
-  z-index: 53;
+.card:hover {
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.1);
 }
 
-@media (max-width: 768px) {
-  .main-tabs {
-    border-radius: 10px;
-  }
+.card-header {
+  border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+}
+
+.card-header h3 {
+  margin: 0;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card-header h3 i {
+  color: #409EFF;
 }
 </style>

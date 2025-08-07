@@ -29,6 +29,8 @@ const state = reactive({
   searchKeyword: ''
 });
 
+let clipboardUpdateListener = null;
+
 // 定义mutations（修改状态的方法）
 const mutations = {
   SET_AUTHENTICATED(isAuthenticated) {
@@ -48,6 +50,45 @@ const mutations = {
     state.clipboardItems = items;
   },
 
+  ADD_CLIPBOARD_ITEM(item) {
+    console.log('添加剪贴板项目:', item);
+    // 确保项目有正确的格式
+    const formattedItem = {
+      id: item.id,
+      content: item.content || '',
+      file_path: item.file_path || null,
+      file_name: item.file_name || item.filename || null, // 兼容后端返回的filename字段
+      file_size: item.file_size || item.size || null, // 兼容后端返回的size字段
+      mime_type: item.mime_type || null,
+      user_id: item.user_id,
+      created_at: item.created_at || new Date().toISOString(),
+      // 添加type字段以匹配前端组件期望的格式
+      type: item.type || (item.content ? 'text' : 'file')
+    };
+    
+    // 检查项目是否已存在于列表中
+    const existingIndex = state.clipboardItems.findIndex(existingItem => existingItem.id === formattedItem.id);
+    
+    if (existingIndex === -1) {
+      // 只有当项目不存在时才添加到列表顶部
+      state.clipboardItems.unshift(formattedItem);
+      
+      // 保持最多显示100条记录
+      if (state.clipboardItems.length > 100) {
+        state.clipboardItems.splice(100);
+      }
+    } else {
+      // 如果项目已存在，更新它而不是添加新项目
+      state.clipboardItems[existingIndex] = formattedItem;
+      
+      // 将该项目移到列表顶部
+      const [updatedItem] = state.clipboardItems.splice(existingIndex, 1);
+      state.clipboardItems.unshift(updatedItem);
+    }
+    
+    console.log('更新后的剪贴板项目列表:', state.clipboardItems);
+  },
+
   SET_ACCESS_LOGS(logs) {
     state.accessLogs = logs;
   },
@@ -64,266 +105,42 @@ const mutations = {
     state.githubInfo = githubInfo;
   },
 
-  SET_CURRENT_BACKGROUND(background) {
-    state.currentBackground = background;
-  },
-
-  SET_LOADING(section, loading) {
-    state.loading[section] = loading;
-  },
-
-  SET_PAGINATION(page, size, total) {
-    state.currentPage = page;
-    state.pageSize = size;
+  SET_TOTAL_ITEMS(total) {
     state.totalItems = total;
   },
-  
+
+  SET_CURRENT_PAGE(page) {
+    state.currentPage = page;
+  },
+
+  SET_PAGE_SIZE(size) {
+    state.pageSize = size;
+  },
+
   SET_SEARCH_KEYWORD(keyword) {
     state.searchKeyword = keyword;
-  }
-};
-
-// 定义actions（业务逻辑方法）
-const actions = {
-  // 用户认证
-  authenticate: async function(apiKey) {
-    try {
-      mutations.SET_LOADING('users', true);
-      const result = await api.authenticate(apiKey);
-      
-      if (result.success) {
-        mutations.SET_AUTHENTICATED(true);
-        mutations.SET_API_KEY(apiKey);
-        mutations.SET_ADMIN(result.admin || false);
-        
-        // 获取用户列表
-        if (result.admin) {
-          await this.fetchUsers();
-        }
-      } else {
-        // 使用全局消息提示而不是this.$message
-        console.error(result.message || '认证失败');
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('认证错误:', error);
-      // 返回标准错误格式
-      return { success: false, message: error.message || '认证过程中发生错误' };
-    } finally {
-      mutations.SET_LOADING('users', false);
-    }
   },
 
-  // 获取剪贴板历史记录
-  fetchClipboardHistory: async function(search = '') {
-    try {
-      mutations.SET_LOADING('clipboard', true);
-      // 使用当前状态的分页参数和搜索关键词
-      const params = {
-        page: state.currentPage,
-        size: state.pageSize,
-        search: search || state.searchKeyword
-      };
-      
-      const result = await api.getClipboardHistory(params);
-      
-      if (result.success) {
-        mutations.SET_CLIPBOARD_ITEMS(result.data || []);
-        // 更新分页状态
-        if (result.total !== undefined) {
-          mutations.SET_PAGINATION(
-            result.page || state.currentPage,
-            result.size || state.pageSize,
-            result.total
-          );
-        }
-      } else {
-        console.error(result.message || '获取剪贴板历史失败');
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('获取剪贴板历史错误:', error);
-      return { success: false, message: '获取剪贴板历史时发生错误' };
-    } finally {
-      mutations.SET_LOADING('clipboard', false);
-    }
+  SET_LOADING(type, loading) {
+    state.loading[type] = loading;
   },
-
-  // 获取访问日志
-  fetchAccessLogs: async function() {
-    try {
-      mutations.SET_LOADING('accessLogs', true);
-      // 使用当前状态的分页参数
-      const params = {
-        page: state.currentPage,
-        size: state.pageSize
-      };
-      
-      const result = await api.getAccessLogs(params);
-      
-      if (result.success) {
-        mutations.SET_ACCESS_LOGS(result.data || []);
-        // 更新分页状态
-        if (result.total !== undefined) {
-          mutations.SET_PAGINATION(
-            result.page || state.currentPage,
-            result.size || state.pageSize,
-            result.total
-          );
-        }
-      } else {
-        console.error(result.message || '获取访问日志失败');
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('获取访问日志错误:', error);
-      return { success: false, message: '获取访问日志时发生错误' };
-    } finally {
-      mutations.SET_LOADING('accessLogs', false);
-    }
-  },
-
-  // 获取用户列表（仅管理员）
-  fetchUsers: async function() {
-    try {
-      mutations.SET_LOADING('users', true);
-      const result = await api.getAllUsers();
-      
-      if (result.success) {
-        mutations.SET_USERS(result.data || []);
-      } else {
-        console.error(result.message || '获取用户列表失败');
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('获取用户列表错误:', error);
-      return { success: false, message: '获取用户列表时发生错误' };
-    } finally {
-      mutations.SET_LOADING('users', false);
-    }
-  },
-
-  // 获取活跃用户
-  fetchActiveUsers: async function() {
-    try {
-      mutations.SET_LOADING('activeUsers', true);
-      const result = await api.getActiveUsers();
-      
-      if (result.success) {
-        mutations.SET_ACTIVE_USERS(result.data || []);
-      } else {
-        console.error(result.message || '获取活跃用户失败');
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('获取活跃用户错误:', error);
-      return { success: false, message: '获取活跃用户时发生错误' };
-    } finally {
-      mutations.SET_LOADING('activeUsers', false);
-    }
-  },
-
-  // 添加文本内容
-  addTextContent: async function(content) {
-    try {
-      const result = await api.addTextContent(content);
-      return result;
-    } catch (error) {
-      console.error('添加文本内容错误:', error);
-      return { success: false, message: '添加文本内容时发生错误' };
-    }
-  },
-
-  // 删除剪贴板项目
-  deleteClipboardItem: async function(id) {
-    try {
-      const result = await api.deleteClipboardItem(id);
-      return result;
-    } catch (error) {
-      console.error('删除剪贴板项目错误:', error);
-      return { success: false, message: '删除剪贴板项目时发生错误' };
-    }
-  },
-
-  // 添加用户（仅管理员）
-  addUser: async function(userData) {
-    try {
-      const result = await api.addUser(userData);
-      
-      if (result.success) {
-        // 添加成功后刷新用户列表
-        await this.fetchUsers();
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('添加用户错误:', error);
-      return { success: false, message: '添加用户时发生错误' };
-    }
-  },
-
-  // 删除用户（仅管理员）
-  deleteUser: async function(userId) {
-    try {
-      const result = await api.deleteUser(userId);
-      
-      if (result.success) {
-        // 删除成功后刷新用户列表
-        await this.fetchUsers();
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('删除用户错误:', error);
-      return { success: false, message: '删除用户时发生错误' };
-    }
-  },
-
-  // 登出
-  logout: function() {
-    mutations.SET_AUTHENTICATED(false);
-    mutations.SET_ADMIN(false);
-    mutations.SET_API_KEY(null);
-    mutations.SET_USERS([]);
-    mutations.SET_ACTIVE_USERS([]);
-    mutations.SET_CLIPBOARD_ITEMS([]);
-    mutations.SET_ACCESS_LOGS([]);
-    localStorage.removeItem('clipboard_api_key');
-  },
-
-  // 初始化背景图片
-  initializeBackground: function() {
-    // 检查本地存储中是否有背景图片设置
-    const storedBackground = localStorage.getItem('clipboard_background');
-    if (storedBackground && state.backgroundImages.includes(storedBackground)) {
-      mutations.SET_CURRENT_BACKGROUND(storedBackground);
+  
+  initializeBackground() {
+    // 从本地存储获取背景图片设置
+    const savedBackground = localStorage.getItem('clipboard_background');
+    if (savedBackground) {
+      state.currentBackground = savedBackground;
     } else {
       // 默认使用第一张图片
-      const defaultBackground = state.backgroundImages[0];
-      mutations.SET_CURRENT_BACKGROUND(defaultBackground);
-      localStorage.setItem('clipboard_background', defaultBackground);
+      state.currentBackground = state.backgroundImages[0];
     }
-  },
-
-  // 更新背景图片（现在只有一张图片，所以不更新）
-  updateBackground: function() {
-    // 保持当前背景图片不变
-  },
-
-  // 设置搜索关键词
-  setSearchKeyword: function(keyword) {
-    mutations.SET_SEARCH_KEYWORD(keyword);
   }
 };
 
-// 导出只读状态和方法
-export default {
+// 创建store实例
+const store = {
   state: readonly(state),
-  ...actions,
-  ...mutations
+  mutations
 };
+
+export default store;

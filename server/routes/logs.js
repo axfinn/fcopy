@@ -13,16 +13,15 @@ router.get('/access', authenticateApiKey, requireAdmin, (req, res) => {
   const offset = (page - 1) * size;
   
   const sql = `
-    SELECT al.*, u.username
+    SELECT al.*
     FROM access_logs al
-    LEFT JOIN users u ON al.user_id = u.id
     ORDER BY al.timestamp DESC 
     LIMIT ? OFFSET ?
   `;
   
   db.all(sql, [size, offset], (err, rows) => {
     if (err) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ success: false, error: err.message });
       return;
     }
     
@@ -30,11 +29,12 @@ router.get('/access', authenticateApiKey, requireAdmin, (req, res) => {
     const countSql = 'SELECT COUNT(*) as count FROM access_logs';
     db.get(countSql, [], (err, countResult) => {
       if (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ success: false, error: err.message });
         return;
       }
       
       res.json({ 
+        success: true,
         data: rows,
         total: countResult.count,
         page: page,
@@ -58,10 +58,13 @@ router.get('/rate-limits', authenticateApiKey, requireAdmin, (req, res) => {
   
   db.all(sql, [], (err, rows) => {
     if (err) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ success: false, error: err.message });
       return;
     }
-    res.json({ data: rows });
+    res.json({ 
+      success: true,
+      data: rows 
+    });
   });
 });
 

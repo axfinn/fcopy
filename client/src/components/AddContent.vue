@@ -87,11 +87,11 @@ export default {
   },
   computed: {
     uploadUrl() {
-      return '/api/clipboard/upload';
+      return '/api/clipboard/file';
     },
     uploadHeaders() {
       return {
-        'x-api-key': this.apiKey
+        'X-API-Key': this.apiKey
       };
     }
   },
@@ -120,7 +120,7 @@ export default {
         const response = await fetch(this.uploadUrl, {
           method: 'POST',
           headers: {
-            'x-api-key': this.apiKey
+            'X-API-Key': this.apiKey
           },
           body: formData
         });

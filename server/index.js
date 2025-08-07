@@ -66,7 +66,7 @@ database.init().then(() => {
 // API路由
 app.use('/api/clipboard', clipboardRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/access-logs', logsRoutes); // 修改路径以匹配前端调用
+app.use('/api/logs', logsRoutes); // 修复路径以匹配前端调用
 app.use('/api/active-users', activeUsersRoutes);
 
 // 添加GitHub信息API端点
@@ -155,13 +155,16 @@ io.use((socket, next) => {
 });
 
 io.on('connection', (socket) => {
-  console.log(`用户 ${socket.user.username} 已连接`);
+  console.log(`用户 ${socket.user.username} 已连接，Socket ID: ${socket.id}`);
+  
+  // 添加连接时间
+  socket.connectedAt = new Date();
   
   // 将用户加入其专属房间
   socket.join(`user_${socket.user.id}`);
   
   socket.on('disconnect', () => {
-    console.log(`用户 ${socket.user.username} 已断开连接`);
+    console.log(`用户 ${socket.user.username} 已断开连接，Socket ID: ${socket.id}`);
   });
 });
 

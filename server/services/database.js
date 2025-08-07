@@ -118,7 +118,7 @@ class DatabaseService {
         console.log('访问记录表已创建或已存在');
       }
     });
-    
+
     // 添加测试方法
     this.testInsertAndRetrieve = () => {
       // 插入测试数据

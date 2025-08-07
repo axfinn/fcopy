@@ -150,8 +150,8 @@ export default {
     <!-- 添加分页组件 -->
     <div style="margin-top: 20px; text-align: center;">
       <el-pagination
-        @current-change="handlePageChange"
-        @size-change="handleSizeChange"
+        @current-change="$emit('current-change')"
+        @size-change="$emit('size-change')"
         :current-page="currentPage"
         :page-sizes="[10, 20, 50, 100]"
         :page-size="pageSize"
@@ -212,12 +212,12 @@ export default {
   methods: {
     handlePageChange(page) {
       this.currentPage = page;
-      this.fetchClipboardHistory({ page, size: this.pageSize });
+      this.$emit('current-change', page);
     },
     
     handleSizeChange(size) {
       this.pageSize = size;
-      this.fetchClipboardHistory({ page: 1, size });
+      this.$emit('size-change', size);
     },
     
     searchClipboard() {

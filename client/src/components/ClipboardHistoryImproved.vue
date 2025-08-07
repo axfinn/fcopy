@@ -27,7 +27,7 @@
 
       <!-- 数据表格 -->
       <el-table 
-        :data="tableData" 
+        :data="displayData" 
         style="width: 100%"
         v-loading="loading"
         element-loading-text="加载中..."
@@ -50,7 +50,7 @@
                 type="text" 
                 size="small" 
                 @click="copyToClipboard(scope.row.content)"
-                style="margin-left: 10px"
+                class="copy-btn"
               >
                 复制
               </el-button>
@@ -59,7 +59,7 @@
               <div v-if="isImage(scope.row.mime_type)" class="image-preview">
                 <img 
                   :src="`/api/clipboard/file/${scope.row.id}`" 
-                  :alt="scope.row.filename"
+                  :alt="scope.row.file_name"
                   @error="handleImageError"
                   style="max-height: 100px; max-width: 150px; border-radius: 4px;"
                 />
@@ -68,13 +68,13 @@
                 <el-icon style="font-size: 40px; color: #409EFF;"><Document /></el-icon>
               </div>
               <div class="file-info">
-                <div>{{ scope.row.filename }}</div>
+                <div>{{ scope.row.file_name }}</div>
                 <div class="file-meta">
-                  <span>{{ formatFileSize(scope.row.size) }}</span>
+                  <span>{{ formatFileSize(scope.row.file_size) }}</span>
                   <el-button 
                     type="text" 
                     size="small" 
-                    @click="downloadFile(scope.row.id, scope.row.filename, scope.row.mime_type)"
+                    @click="downloadFile(scope.row.id, scope.row.file_name, scope.row.mime_type)"
                   >
                     下载
                   </el-button>
@@ -104,16 +104,57 @@
             <span v-if="scope.row">{{ formatToShanghaiTime(scope.row.created_at) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100">
+        <el-table-column label="操作" width="200" fixed="right">
           <template v-slot="scope">
-            <el-button 
-              type="danger" 
-              :icon="Delete" 
-              circle 
-              size="small"
-              @click="deleteItem(scope.row.id)"
-              v-if="scope.row"
-            ></el-button>
+            <div class="action-buttons" v-if="scope.row">
+              <el-button 
+                v-if="scope.row.type === 'text'" 
+                type="primary" 
+                size="small"
+                @click="copyToClipboard(scope.row.content)"
+              >
+                复制
+              </el-button>
+              <el-button 
+                v-else
+                type="primary" 
+                size="small"
+                @click="downloadFile(scope.row.id, scope.row.file_name, scope.row.mime_type)"
+              >
+                下载
+              </el-button>
+              
+              <el-dropdown trigger="click" @command="(command) => handleCommand(command, scope.row)">
+                <el-button size="small">
+                  更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item 
+                      v-if="isTextFile(scope.row.mime_type) || scope.row.type === 'text'"
+                      command="previewText"
+                    >
+                      预览文本
+                    </el-dropdown-item>
+                    <el-dropdown-item 
+                      v-if="isPdfFile(scope.row.mime_type)"
+                      command="previewPdf"
+                    >
+                      预览PDF
+                    </el-dropdown-item>
+                    <el-dropdown-item 
+                      v-if="isImage(scope.row.mime_type)"
+                      command="previewImage"
+                    >
+                      预览图片
+                    </el-dropdown-item>
+                    <el-dropdown-item command="delete" divided>
+                      删除
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -137,14 +178,23 @@
 </template>
 
 <script>
+import { formatDistanceToNow, parseISO } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
+import { Document, Search, ArrowDown } from '@element-plus/icons-vue';
 import api from '../services/api.js';
 
 export default {
   name: 'ClipboardHistoryImproved',
-  props: {
-    apiKey: String
+  components: {
+    Document,
+    Search,
+    ArrowDown
   },
-  emits: ['copy-to-clipboard', 'download-file', 'preview-text-file', 'preview-pdf-file', 'delete-item'],
+  props: {
+    apiKey: String,
+    clipboardItems: Array
+  },
+  emits: ['copy-to-clipboard', 'download-file', 'preview-text-file', 'preview-pdf-file', 'delete-item', 'preview-image'],
   data() {
     return {
       loading: false,
@@ -159,6 +209,12 @@ export default {
       }
     };
   },
+  computed: {
+    displayData() {
+      // 始终显示tableData，它包含了合并后的数据
+      return this.tableData;
+    }
+  },
   mounted() {
     if (this.apiKey) {
       api.setApiKey(this.apiKey);
@@ -171,6 +227,59 @@ export default {
         api.setApiKey(newVal);
         this.resetSearch();
       }
+    },
+    clipboardItems: {
+      handler(newVal) {
+        console.log('clipboardItems 更新:', newVal);
+        // 当实时数据更新时，将新数据合并到现有数据中，而不是完全替换
+        if (Array.isArray(newVal) && newVal.length > 0) {
+          // 检查是否是初始化数据（即通过fetchData获取的完整数据列表）
+          // 如果新数据数组长度较大，可能是初始化数据而不是单个新增项目
+          if (newVal.length > 10) {
+            // 这是初始化数据，直接替换
+            this.tableData = [...newVal];
+            return;
+          }
+          
+          // 这是实时更新的数据，需要合并到现有数据中
+          // 避免重复添加已经在列表中的项目
+          const currentIds = new Set(this.tableData.map(item => item.id));
+          const newItems = newVal.filter(item => !currentIds.has(item.id));
+          
+          if (newItems.length > 0) {
+            // 将新项目添加到现有数据前面
+            this.tableData = [...newItems, ...this.tableData];
+            
+            // 如果数据超过100条，只保留前100条
+            if (this.tableData.length > 100) {
+              this.tableData = this.tableData.slice(0, 100);
+            }
+            
+            // 更新总数（如果需要）
+            if (this.pagination.total < this.tableData.length) {
+              this.pagination.total = this.tableData.length;
+            }
+          } else {
+            // 如果没有新项目，可能是现有项目的更新，需要更新它们
+            newVal.forEach(updatedItem => {
+              const index = this.tableData.findIndex(item => item.id === updatedItem.id);
+              if (index !== -1) {
+                // 更新现有项目
+                this.tableData.splice(index, 1, updatedItem);
+                
+                // 将更新的项目移到顶部
+                const [movedItem] = this.tableData.splice(index, 1);
+                this.tableData.unshift(movedItem);
+              }
+            });
+          }
+        } else if (Array.isArray(newVal) && newVal.length === 0) {
+          // 如果传入空数组，则清空当前数据
+          this.tableData = [];
+          this.pagination.total = 0;
+        }
+      },
+      immediate: true // 修改为true，确保初始化时也能处理数据
     }
   },
   methods: {
@@ -307,9 +416,27 @@ export default {
       }).format(date);
     },
 
-    // 处理图片加载错误
-    handleImageError(event) {
-      event.target.src = '/images/image-placeholder.png';
+    // 下拉菜单命令处理
+    handleCommand(command, row) {
+      switch (command) {
+        case 'previewText':
+          this.previewTextFile(row);
+          break;
+        case 'previewPdf':
+          this.previewPdfFile(row);
+          break;
+        case 'previewImage':
+          this.previewImage(row);
+          break;
+        case 'delete':
+          this.deleteItem(row.id);
+          break;
+      }
+    },
+
+    // 预览图片
+    previewImage(item) {
+      this.$emit('preview-image', item);
     }
   }
 };
@@ -367,38 +494,34 @@ export default {
 }
 
 .content-preview {
-  white-space: pre-wrap;
-  word-break: break-word;
-  margin-bottom: 15px;
-  line-height: 1.6;
-  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.copy-btn {
+  flex-shrink: 0;
 }
 
 .file-preview {
-  padding: 20px;
-  background-color: #f5f7fa;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.file-preview:hover {
-  background-color: #eef1f6;
-  transform: translateY(-2px);
+.file-name {
+  font-weight: 500;
 }
 
-.file-preview i {
-  font-size: 2rem;
-  color: #409EFF;
-  display: block;
-  margin-bottom: 10px;
-}
-
-.file-preview .preview-hint {
-  font-size: 0.8rem;
+.file-size {
   color: #999;
-  margin-top: 5px;
+  font-size: 12px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .pagination-area {

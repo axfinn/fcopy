@@ -43,7 +43,7 @@ router.get('/', authenticateApiKey, (req, res) => {
     db.get(countSql, countParams, (err, countResult) => {
       if (err) {
         console.error('数据库计数查询错误:', err.message);
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ success: false, error: err.message });
         return;
       }
       
@@ -51,10 +51,11 @@ router.get('/', authenticateApiKey, (req, res) => {
       db.all(sql, params, (err, rows) => {
         if (err) {
           console.error('数据库数据查询错误:', err.message);
-          res.status(500).json({ error: err.message });
+          res.status(500).json({ success: false, error: err.message });
           return;
         }
         res.json({ 
+          success: true,
           data: rows,
           total: countResult.count,
           page: page,
@@ -79,7 +80,7 @@ router.get('/', authenticateApiKey, (req, res) => {
     db.get(countSql, [], (err, countResult) => {
       if (err) {
         console.error('数据库计数查询错误:', err.message);
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ success: false, error: err.message });
         return;
       }
       
@@ -87,10 +88,11 @@ router.get('/', authenticateApiKey, (req, res) => {
       db.all(sql, params, (err, rows) => {
         if (err) {
           console.error('数据库数据查询错误:', err.message);
-          res.status(500).json({ error: err.message });
+          res.status(500).json({ success: false, error: err.message });
           return;
         }
         res.json({ 
+          success: true,
           data: rows,
           total: countResult.count,
           page: page,
@@ -181,13 +183,20 @@ router.post('/text', authenticateApiKey, (req, res) => {
       id: this.lastID, 
       content, 
       user_id: req.user.id,
-      created_at: new Date() 
+      created_at: new Date().toISOString(),
+      type: 'text'
     };
     
     // 只向该用户广播更新
     io.to(`user_${req.user.id}`).emit('clipboard-update', data);
     
-    res.json({ id: this.lastID, content });
+    res.json({ 
+      id: this.lastID, 
+      content,
+      user_id: req.user.id,
+      created_at: new Date().toISOString(),
+      type: 'text'
+    });
   });
 });
 
@@ -218,7 +227,8 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
       file_size: size,
       mime_type: mimetype,
       user_id: req.user.id,
-      created_at: new Date()
+      created_at: new Date().toISOString(),
+      type: 'file'
     };
     
     // 只向该用户广播更新
@@ -229,7 +239,10 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
       file_path: filePath,
       file_name: originalname,
       file_size: size,
-      mime_type: mimetype
+      mime_type: mimetype,
+      user_id: req.user.id,
+      created_at: new Date().toISOString(),
+      type: 'file'
     });
   });
 });

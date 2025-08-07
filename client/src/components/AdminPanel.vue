@@ -30,8 +30,15 @@
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="150">
+              <el-table-column label="操作" width="200">
                 <template #default="scope">
+                  <el-button 
+                    size="small" 
+                    @click="showEditApiKeyDialog(scope.row)"
+                    :disabled="scope.row.is_admin"
+                  >
+                    <i class="el-icon-edit"></i> 编辑密钥
+                  </el-button>
                   <el-button 
                     size="small" 
                     type="danger" 
@@ -58,34 +65,51 @@
             </template>
             
             <el-table :data="activeUsers" style="width: 100%" empty-text="暂无活跃客户端">
-              <el-table-column prop="id" label="用户ID" width="100"></el-table-column>
-              <el-table-column prop="username" label="用户名"></el-table-column>
-              <el-table-column prop="is_admin" label="管理员" width="100">
+              <el-table-column prop="id" label="用户ID" width="80"></el-table-column>
+              <el-table-column prop="username" label="用户名" width="120"></el-table-column>
+              <el-table-column prop="is_admin" label="管理员" width="80">
                 <template #default="scope">
-                  <el-tag :type="scope.row.is_admin ? 'danger' : 'info'">
+                  <el-tag :type="scope.row.is_admin ? 'danger' : 'info'" size="small">
                     {{ scope.row.is_admin ? '是' : '否' }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="totalConnections" label="连接数" width="100">
+              <el-table-column prop="totalConnections" label="连接数" width="80">
                 <template #default="scope">
                   {{ scope.row.totalConnections }}
                 </template>
               </el-table-column>
-              <el-table-column label="浏览器详情" width="250">
+              <el-table-column label="浏览器详情" width="150">
                 <template #default="scope">
                   <div v-for="(count, browser) in scope.row.browsers" :key="browser" class="browser-info">
                     <el-tag size="small" type="info">{{ browser }}: {{ count }}</el-tag>
                   </div>
                 </template>
               </el-table-column>
-              <el-table-column label="连接详情" width="300">
+              <el-table-column label="连接详情" min-width="400">
                 <template #default="scope">
                   <div v-for="conn in scope.row.connections" :key="conn.socketId" class="connection-info">
                     <div class="connection-detail">
-                      <div>IP: {{ conn.ip }}</div>
-                      <div>User Agent: {{ truncatedText(conn.userAgent, 50) }}</div>
-                      <div>连接时间: {{ formatToShanghaiTime(conn.connectedAt) }}</div>
+                      <el-row :gutter="10">
+                        <el-col :span="8">
+                          <div class="detail-item">
+                            <strong>IP:</strong> {{ conn.ip }}
+                          </div>
+                        </el-col>
+                        <el-col :span="8">
+                          <div class="detail-item">
+                            <strong>连接时间:</strong> {{ formatToShanghaiTime(conn.connectedAt) }}
+                          </div>
+                        </el-col>
+                        <el-col :span="8">
+                          <div class="detail-item">
+                            <strong>Socket ID:</strong> {{ truncatedText(conn.socketId, 10) }}
+                          </div>
+                        </el-col>
+                      </el-row>
+                      <div class="detail-item">
+                        <strong>User Agent:</strong> {{ conn.userAgent }}
+                      </div>
                     </div>
                   </div>
                 </template>
@@ -141,6 +165,24 @@
         </span>
       </template>
     </el-dialog>
+    
+    <!-- 编辑API密钥对话框 -->
+    <el-dialog title="编辑用户API密钥" v-model="editApiKeyDialogVisible" width="400px">
+      <el-form :model="editingUser" label-width="80px">
+        <el-form-item label="用户名">
+          <el-input v-model="editingUser.username" disabled></el-input>
+        </el-form-item>
+        <el-form-item label="API密钥">
+          <el-input v-model="editingUser.apiKey" autocomplete="off"></el-input>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="editApiKeyDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="updateUserApiKey">确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -150,18 +192,34 @@ export default {
   props: {
     users: Array,
     activeUsers: Array,
-    accessLogs: Array
+    accessLogs: Array,
+    // 分页相关props
+    currentPage: {
+      type: Number,
+      default: 1
+    },
+    pageSize: {
+      type: Number,
+      default: 50
+    },
+    totalItems: {
+      type: Number,
+      default: 0
+    }
   },
   data() {
     return {
       addUserDialogVisible: false,
+      editApiKeyDialogVisible: false,
       newUser: {
         username: '',
         apiKey: ''
       },
-      currentPage: 1,
-      pageSize: 50,
-      totalItems: 0
+      editingUser: {
+        id: null,
+        username: '',
+        apiKey: ''
+      }
     };
   },
   methods: {
@@ -170,6 +228,16 @@ export default {
       this.addUserDialogVisible = true;
       this.newUser = {
         username: '',
+        apiKey: ''
+      };
+    },
+    
+    // 显示编辑API密钥对话框
+    showEditApiKeyDialog(user) {
+      this.editApiKeyDialogVisible = true;
+      this.editingUser = {
+        id: user.id,
+        username: user.username,
         apiKey: ''
       };
     },
@@ -187,6 +255,30 @@ export default {
       });
       
       this.addUserDialogVisible = false;
+      this.newUser = {
+        username: '',
+        apiKey: ''
+      };
+    },
+    
+    // 更新用户API密钥
+    updateUserApiKey() {
+      if (!this.editingUser.apiKey) {
+        this.$message.error('API密钥不能为空');
+        return;
+      }
+      
+      this.$emit('update-user-apikey', {
+        userId: this.editingUser.id,
+        apiKey: this.editingUser.apiKey
+      });
+      
+      this.editApiKeyDialogVisible = false;
+      this.editingUser = {
+        id: null,
+        username: '',
+        apiKey: ''
+      };
     },
     
     // 删除用户
@@ -218,30 +310,15 @@ export default {
 
     // 处理分页变化
     handlePageChange(page) {
-      this.currentPage = page;
-      this.fetchAccessLogs();
+      this.$emit('page-change', { page, size: this.pageSize });
     },
 
     // 处理页面大小变化
     handleSizeChange(size) {
-      this.pageSize = size;
-      this.currentPage = 1;
-      this.fetchAccessLogs();
-    },
-
-    // 获取访问日志
-    fetchAccessLogs() {
-      // 构建查询参数
-      const params = new URLSearchParams({
-        page: this.currentPage,
-        size: this.pageSize
-      });
-
-      // 发送事件到父组件获取访问日志
-      this.$emit('update-access-logs', params);
+      this.$emit('page-change', { page: 1, size });
     }
   },
-  emits: ['add-user', 'delete-user']
+  emits: ['add-user', 'delete-user', 'update-user-apikey', 'page-change']
 };
 </script>
 
@@ -320,9 +397,10 @@ export default {
 
 .connection-info {
   margin-bottom: 8px;
-  padding: 5px;
+  padding: 8px;
   background-color: #f5f7fa;
   border-radius: 4px;
+  border-left: 3px solid #409eff;
 }
 
 .connection-info:last-child {
@@ -332,5 +410,18 @@ export default {
 .connection-detail {
   font-size: 12px;
   color: #666;
+}
+
+.detail-item {
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+
+.detail-item:last-child {
+  margin-bottom: 0;
+}
+
+.detail-item strong {
+  color: #333;
 }
 </style>
