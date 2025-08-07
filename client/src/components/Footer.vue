@@ -79,6 +79,8 @@ export default {
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
   padding: 20px 0;
   margin-top: auto;
+  z-index: 10;
+  position: relative;
 }
 
 .footer-content {

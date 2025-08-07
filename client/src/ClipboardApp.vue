@@ -65,6 +65,7 @@
     
     <!-- 底部信息 -->
     <Footer 
+      v-if="store.state.isAuthenticated"
       :github-info="store.state.githubInfo"
     />
     
@@ -102,9 +103,42 @@
           frameborder="0"
         ></iframe>
       </div>
+      <div v-else class="pdf-file-container">
+        <p>文件加载中...</p>
+      </div>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="pdfPreviewDialogVisible = false">关闭</el-button>
+        </span>
+      </template>
+    </el-dialog>
+    
+    <!-- 文件上传对话框 -->
+    <el-dialog
+      v-model="uploadFileDialogVisible"
+      title="上传文件"
+      width="500px"
+      :before-close="handleUploadFileClose"
+    >
+      <el-upload
+        class="upload-demo"
+        drag
+        :action="uploadUrl"
+        :headers="uploadHeaders"
+        :on-success="handleUploadSuccess"
+        :on-error="handleUploadError"
+        multiple
+      >
+        <i class="el-icon-upload"></i>
+        <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+        <template #tip>
+          <div class="el-upload__tip">只能上传jpg/png/gif/pdf/doc/docx/xls/xlsx/ppt/pptx/txt/md文件，且不超过10MB</div>
+        </template>
+      </el-upload>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="uploadFileDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="confirmUpload">确定</el-button>
         </span>
       </template>
     </el-dialog>
@@ -709,7 +743,7 @@ export default defineComponent({
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 1000;
+  z-index: 100;
 }
 
 .app-container {
@@ -776,5 +810,28 @@ export default defineComponent({
 
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .app-container {
+    min-height: calc(100vh - 100px);
+    padding-top: 50px;
+  }
+  
+  .content-main {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-container {
+    min-height: calc(100vh - 80px);
+    padding-top: 45px;
+  }
+  
+  .content-main {
+    padding: 10px;
+  }
 }
 </style>

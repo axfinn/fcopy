@@ -52,7 +52,6 @@
         </div>
       </el-card>
     </div>
-    
   </div>
 </template>
 
@@ -160,7 +159,7 @@ export default {
   padding: 40px 30px;
   margin: auto;
   position: relative;
-  z-index: 2001;
+  z-index: 10;
 }
 
 .auth-card-header {
@@ -364,6 +363,52 @@ export default {
   
   .feature-item span {
     font-size: 13px;
+  }
+}
+
+/* 超小屏幕设备优化 */
+@media (max-width: 360px) {
+  .auth-card {
+    padding: 20px 12px;
+  }
+  
+  .auth-card-header h2 {
+    font-size: 1.2rem;
+  }
+  
+  .subtitle {
+    font-size: 0.85rem;
+  }
+  
+  .logo {
+    width: 45px;
+    height: 45px;
+  }
+  
+  .logo i {
+    font-size: 20px;
+  }
+  
+  .auth-input {
+    margin: 15px 0;
+  }
+  
+  .auth-button {
+    padding: 10px;
+    font-size: 13px;
+  }
+  
+  .feature-item {
+    padding: 10px;
+    gap: 8px;
+  }
+  
+  .feature-item i {
+    font-size: 16px;
+  }
+  
+  .feature-item span {
+    font-size: 12px;
   }
 }
 </style>
