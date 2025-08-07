@@ -4,16 +4,18 @@
       <div class="header-left">
         <h1><i class="el-icon-copy-document"></i> 跨平台剪贴板同步工具</h1>
       </div>
-      <div class="auth-info" v-if="isAuthenticated">
-        <el-button 
-          type="danger" 
-          size="small" 
-          @click="logout" 
-          round
-          class="logout-button"
-        >
-          <i class="el-icon-switch-button"></i> 登出
-        </el-button>
+      <div class="header-right">
+        <div class="auth-info" v-if="isAuthenticated">
+          <el-button 
+            type="danger" 
+            size="small" 
+            @click="logout" 
+            round
+            class="logout-button"
+          >
+            <i class="el-icon-switch-button"></i> 登出
+          </el-button>
+        </div>
       </div>
     </div>
   </el-header>
@@ -44,8 +46,9 @@ export default {
   height: auto !important;
   line-height: normal !important;
   position: relative !important;
-  z-index: 1000 !important;
+  z-index: 100 !important;
   width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .header-content {
@@ -56,16 +59,21 @@ export default {
   flex-wrap: wrap;
   position: relative;
   padding: 10px 20px;
-  z-index: 100;
-  background-color: rgba(255, 255, 255, 0.8);
-  border-radius: 10px;
-  margin: 10px;
+  z-index: 101;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 0;
+  margin: 0;
   backdrop-filter: blur(5px);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
 }
 
 .header-left {
   flex: 1;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
 }
 
 .header-content h1 {
@@ -85,7 +93,8 @@ export default {
   display: flex;
   align-items: center;
   margin: 10px 0;
-  z-index: 1001;
+  z-index: 102;
+  position: relative;
 }
 
 .logout-button {
@@ -94,7 +103,7 @@ export default {
   font-size: 12px;
   cursor: pointer;
   position: relative;
-  z-index: 1002;
+  z-index: 103;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   background-color: #f56c6c !important;
   border-color: #f56c6c !important;
@@ -108,11 +117,11 @@ export default {
     flex-direction: row;
     text-align: left;
     gap: 10px;
-    padding: 15px 0;
+    padding: 15px 15px;
   }
   
   .header-content h1 {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     margin: 0;
     text-align: left;
     width: auto;
@@ -124,15 +133,15 @@ export default {
     justify-content: flex-end;
     margin: 0;
     position: relative;
-    z-index: 1001;
+    z-index: 102;
   }
   
   .logout-button {
     padding: 8px 16px;
-    font-size: 13px;
+    font-size: 12px;
     cursor: pointer;
     position: relative;
-    z-index: 1002;
+    z-index: 103;
     box-shadow: 0 2px 12px rgba(0,0,0,0.2);
   }
 }
@@ -143,11 +152,11 @@ export default {
     font-size: 13px;
     min-width: 100px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-    z-index: 1003;
+    z-index: 103;
   }
   
   .auth-info {
-    z-index: 1002;
+    z-index: 102;
   }
 }
 </style>

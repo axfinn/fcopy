@@ -1,30 +1,22 @@
 <template>
-  <div v-if="githubInfo" class="github-info-container">
-    <div class="github-info-content">
-      <div class="project-info">
-        <span class="info-item">
+  <div class="github-info-container">
+    <div class="github-info-content" v-if="githubInfo">
+      <div class="github-stats">
+        <span class="github-stat-item">
           <i class="el-icon-collection"></i> Stars: {{ githubInfo.stars }}
         </span>
-        <span class="info-item">
+        <span class="github-stat-item">
           <i class="el-icon-share"></i> Forks: {{ githubInfo.forks }}
         </span>
-        <span class="info-item">
+        <span class="github-stat-item">
           <i class="el-icon-info"></i> Version: {{ githubInfo.version }}
         </span>
       </div>
-      <div class="support-info">
-        <span class="support-item">
-          <i class="el-icon-link"></i> 
-          <a :href="githubInfo.html_url" target="_blank" rel="noopener">GitHub 项目</a>
-        </span>
-        <span class="support-item">
-          <i class="el-icon-chat-dot-round"></i> 
-          <a href="https://github.com/axfinn/fcopy/issues" target="_blank" rel="noopener">问题反馈</a>
-        </span>
-        <span class="support-item">
-          <i class="el-icon-document"></i> 
-          <a href="https://github.com/axfinn/fcopy/blob/main/README.md" target="_blank" rel="noopener">使用文档</a>
-        </span>
+      
+      <div class="github-links">
+        <a :href="githubInfo.html_url" target="_blank" rel="noopener">GitHub 项目</a>
+        <a href="https://github.com/axfinn/fcopy/issues" target="_blank" rel="noopener">问题反馈</a>
+        <a href="https://github.com/axfinn/fcopy/blob/main/README.md" target="_blank" rel="noopener">使用文档</a>
       </div>
     </div>
   </div>
@@ -36,7 +28,11 @@ export default {
   props: {
     githubInfo: {
       type: Object,
-      required: true
+      default: null
+    },
+    isAuthenticated: {
+      type: Boolean,
+      default: false
     }
   }
 }
@@ -44,55 +40,52 @@ export default {
 
 <style scoped>
 .github-info-container {
-  margin-top: auto;
-  padding: 15px 0;
-  font-size: 0.85rem;
-  color: #666;
-  background-color: rgba(245, 245, 245, 0.8);
+  width: 100%;
+  background-color: rgba(52, 52, 52, 0.9);
+  color: white;
   backdrop-filter: blur(5px);
-  border-top: 1px solid #eee;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .github-info-content {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 10px 20px;
   display: flex;
-  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-}
-
-.project-info, .support-info {
-  display: flex;
   flex-wrap: wrap;
-  gap: 15px;
-  margin: 5px 0;
+  gap: 10px;
 }
 
-.info-item, .support-item {
+.github-stats {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.github-stat-item {
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
-  border-radius: 15px;
-  background-color: rgba(255, 255, 255, 0.7);
-  font-size: 0.8rem;
 }
 
-.info-item i, .support-item i {
+.github-links {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.github-links a {
   color: #409EFF;
-  font-size: 0.9rem;
-}
-
-.support-item a {
-  color: #666;
   text-decoration: none;
+  font-size: 0.9rem;
   transition: color 0.3s ease;
 }
 
-.support-item a:hover {
-  color: #409EFF;
+.github-links a:hover {
+  color: #66b1ff;
   text-decoration: underline;
 }
 
@@ -100,11 +93,40 @@ export default {
   .github-info-content {
     flex-direction: column;
     text-align: center;
+  }
+  
+  .github-stats {
+    justify-content: center;
+  }
+  
+  .github-stat-item {
+    font-size: 0.8rem;
+  }
+  
+  .github-links a {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .github-info-content {
+    padding: 8px 15px;
+  }
+  
+  .github-stats {
     gap: 10px;
   }
   
-  .project-info, .support-info {
-    justify-content: center;
+  .github-stat-item {
+    font-size: 0.75rem;
+  }
+  
+  .github-links {
+    gap: 10px;
+  }
+  
+  .github-links a {
+    font-size: 0.75rem;
   }
 }
 </style>

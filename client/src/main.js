@@ -4,9 +4,18 @@ import AppHeader from './components/AppHeader.vue';
 import LoginView from './components/LoginView.vue';
 import MainView from './components/MainView.vue';
 import GitHubInfo from './components/GitHubInfo.vue';
+import ClipboardHistory from './components/ClipboardHistory.vue';
+import AddContent from './components/AddContent.vue';
+import AdminPanel from './components/AdminPanel.vue';
+import MyConnections from './components/MyConnections.vue';
 import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';
 import * as ElementPlusIconsVue from '@element-plus/icons-vue';
+
+// 引入服务和状态管理
+import api from './services/api.js';
+import socket from './services/socket.js';
+import store from './store/index.js';
 
 const app = createApp(ClipboardApp);
 app.use(ElementPlus);
@@ -21,5 +30,14 @@ app.component('AppHeader', AppHeader);
 app.component('LoginView', LoginView);
 app.component('MainView', MainView);
 app.component('GitHubInfo', GitHubInfo);
+app.component('ClipboardHistory', ClipboardHistory);
+app.component('AddContent', AddContent);
+app.component('AdminPanel', AdminPanel);
+app.component('MyConnections', MyConnections);
 
 app.mount('#app');
+
+// 将服务实例挂载到全局，方便调试
+window.apiService = api;
+window.socketService = socket;
+window.store = store;

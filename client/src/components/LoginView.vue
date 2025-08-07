@@ -1,5 +1,15 @@
 <template>
   <div class="login-background">
+    <div class="background-container">
+      <div 
+        class="background-slide"
+        :style="{ 
+          backgroundImage: `url(${currentBackground})`,
+          opacity: 1
+        }"
+      ></div>
+    </div>
+    
     <div class="auth-container">
       <el-card class="auth-card" shadow="always">
         <div class="auth-card-header">
@@ -47,22 +57,81 @@
         </div>
       </el-card>
     </div>
+    
+    <!-- 底部使用说明 -->
+    <div class="login-footer">
+      <div class="usage-guide-content">
+        <h3>使用说明</h3>
+        <ul>
+          <li>使用 Ctrl+C / Cmd+C 复制内容到剪贴板</li>
+          <li>使用 Ctrl+V / Cmd+V 粘贴截图或文件</li>
+          <li>文本内容会自动同步到所有连接的设备</li>
+          <li>文件和图片可通过"下载"按钮保存到本地</li>
+          <li>支持实时同步，无需手动刷新</li>
+        </ul>
+      </div>
+    </div>
+    
+    <!-- GitHub信息 -->
+    <div class="login-github-footer" v-if="githubInfo">
+      <GitHubInfo 
+        :github-info="githubInfo" 
+        :is-authenticated="false"
+      />
+    </div>
   </div>
 </template>
 
 <script>
+import GitHubInfo from './GitHubInfo.vue';
+
 export default {
   name: 'LoginView',
+  components: {
+    GitHubInfo
+  },
+  props: {
+    githubInfo: {
+      type: Object,
+      default: null
+    }
+  },
   data() {
     return {
-      apiKey: ''
+      apiKey: '',
+      backgrounds: [
+        'https://picsum.photos/1920/1080?random=1',
+        'https://picsum.photos/1920/1080?random=2',
+        'https://picsum.photos/1920/1080?random=3',
+        'https://picsum.photos/1920/1080?random=4',
+        'https://picsum.photos/1920/1080?random=5'
+      ],
+      currentBackgroundIndex: 0
+    };
+  },
+  computed: {
+    currentBackground() {
+      // 添加时间戳防止缓存
+      const timestamp = new Date().getTime();
+      return `${this.backgrounds[this.currentBackgroundIndex]}&t=${timestamp}`;
     }
   },
   emits: ['authenticate'],
   methods: {
     authenticate() {
       this.$emit('authenticate', this.apiKey);
+    },
+    // 切换背景图片
+    changeBackground() {
+      this.currentBackgroundIndex = (this.currentBackgroundIndex + 1) % this.backgrounds.length;
     }
+  },
+  mounted() {
+    // 每30秒自动切换背景图片
+    setInterval(this.changeBackground, 30000);
+    
+    // 初始加载时随机选择一个背景
+    this.currentBackgroundIndex = Math.floor(Math.random() * this.backgrounds.length);
   }
 }
 </script>
@@ -74,11 +143,28 @@ export default {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   justify-content: center;
   align-items: center;
   overflow: auto;
+  z-index: 2000;
+}
+
+.background-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}
+
+.background-slide {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .auth-container {
@@ -101,6 +187,8 @@ export default {
   backdrop-filter: blur(10px);
   padding: 40px 30px;
   margin: auto;
+  position: relative;
+  z-index: 2001;
 }
 
 .auth-card-header {
@@ -211,6 +299,58 @@ export default {
   color: #666;
 }
 
+/* 登录页底部使用说明 */
+.login-footer {
+  position: fixed;
+  bottom: 40px;
+  left: 0;
+  width: 100%;
+  background-color: rgba(52, 52, 52, 0.9);
+  color: white;
+  z-index: 2002;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.usage-guide-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px 20px;
+  text-align: center;
+}
+
+.usage-guide-content h3 {
+  margin: 0 0 5px 0;
+  font-size: 0.9rem;
+  color: #fff;
+}
+
+.usage-guide-content ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.usage-guide-content li {
+  background-color: rgba(64, 158, 255, 0.3);
+  padding: 5px 10px;
+  border-radius: 15px;
+  font-size: 0.75rem;
+}
+
+/* 登录页GitHub信息 */
+.login-github-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 2003;
+}
+
 @media (max-width: 768px) {
   .auth-card {
     margin: 20px;
@@ -228,6 +368,20 @@ export default {
   
   .logo i {
     font-size: 30px;
+  }
+  
+  .usage-guide-content ul {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .usage-guide-content li {
+    padding: 3px 8px;
+    font-size: 0.7rem;
+  }
+  
+  .login-footer {
+    bottom: 70px;
   }
 }
 
