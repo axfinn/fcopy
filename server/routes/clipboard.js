@@ -150,8 +150,21 @@ router.post('/text', authenticateApiKey, (req, res) => {
         return res.status(500).json({ success: false, error: '查询失败' });
       }
       
-      // 通过WebSocket广播更新
-      req.app.get('io').emit('clipboard-update', row);
+      // 通过WebSocket向同一用户的所有连接广播更新
+      const io = req.app.get('io');
+      // 获取当前用户ID
+      const userSql = 'SELECT id FROM users WHERE api_key = ?';
+      db.get(userSql, [apiKey], (err, userRow) => {
+        if (!err && userRow) {
+          // 向特定用户的房间发送消息
+          console.log('向用户发送剪贴板更新:', userRow.id, row);
+          io.to(`user_${userRow.id}`).emit('clipboard-update', row);
+        } else {
+          // 如果无法获取用户ID，则向所有连接广播（回退方案）
+          console.log('向所有用户发送剪贴板更新:', row);
+          io.emit('clipboard-update', row);
+        }
+      });
       
       res.json({ success: true, id: this.lastID, data: row });
     });
@@ -165,6 +178,7 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
   }
   
   const { originalname, mimetype, size, path: filePath } = req.file;
+  const apiKey = req.headers['x-api-key'];
   const db = database.getInstance();
   
   const sql = `
@@ -188,8 +202,21 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
         return res.status(500).json({ success: false, error: '查询失败' });
       }
       
-      // 通过WebSocket广播更新
-      req.app.get('io').emit('clipboard-update', row);
+      // 通过WebSocket向同一用户的所有连接广播更新
+      const io = req.app.get('io');
+      // 获取当前用户ID
+      const userSql = 'SELECT id FROM users WHERE api_key = ?';
+      db.get(userSql, [apiKey], (err, userRow) => {
+        if (!err && userRow) {
+          // 向特定用户的房间发送消息
+          console.log('向用户发送剪贴板更新:', userRow.id, row);
+          io.to(`user_${userRow.id}`).emit('clipboard-update', row);
+        } else {
+          // 如果无法获取用户ID，则向所有连接广播（回退方案）
+          console.log('向所有用户发送剪贴板更新:', row);
+          io.emit('clipboard-update', row);
+        }
+      });
       
       res.json({ success: true, id: this.lastID, data: row });
     });

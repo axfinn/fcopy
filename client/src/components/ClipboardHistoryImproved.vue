@@ -337,55 +337,41 @@ export default {
     clipboardItems: {
       handler(newVal) {
         console.log('clipboardItems 更新:', newVal);
-        // 当实时数据更新时，将新数据合并到现有数据中，而不是完全替换
         if (Array.isArray(newVal) && newVal.length > 0) {
-          // 检查是否是初始化数据（即通过fetchData获取的完整数据列表）
-          // 如果新数据数组长度较大，可能是初始化数据而不是单个新增项目
           if (newVal.length > 10) {
-            // 这是初始化数据，直接替换
             this.tableData = [...newVal];
             return;
           }
-          
-          // 这是实时更新的数据，需要合并到现有数据中
-          // 避免重复添加已经在列表中的项目
+
           const currentIds = new Set(this.tableData.map(item => item.id));
           const newItems = newVal.filter(item => !currentIds.has(item.id));
-          
+
           if (newItems.length > 0) {
-            // 将新项目添加到现有数据前面
             this.tableData = [...newItems, ...this.tableData];
-            
-            // 如果数据超过100条，只保留前100条
+
             if (this.tableData.length > 100) {
               this.tableData = this.tableData.slice(0, 100);
             }
-            
-            // 更新总数（如果需要）
+
             if (this.pagination.total < this.tableData.length) {
               this.pagination.total = this.tableData.length;
             }
           } else {
-            // 如果没有新项目，可能是现有项目的更新，需要更新它们
             newVal.forEach(updatedItem => {
               const index = this.tableData.findIndex(item => item.id === updatedItem.id);
               if (index !== -1) {
-                // 更新现有项目
                 this.tableData.splice(index, 1, updatedItem);
-                
-                // 将更新的项目移到顶部
                 const [movedItem] = this.tableData.splice(index, 1);
                 this.tableData.unshift(movedItem);
               }
             });
           }
         } else if (Array.isArray(newVal) && newVal.length === 0) {
-          // 如果传入空数组，则清空当前数据
           this.tableData = [];
-          this.pagination.total = 0;
         }
       },
-      immediate: true // 修改为true，确保初始化时也能处理数据
+      deep: true,
+      immediate: true
     }
   },
   methods: {
