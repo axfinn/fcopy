@@ -3,7 +3,6 @@ import ClipboardApp from './ClipboardApp.vue';
 import AppHeader from './components/AppHeader.vue';
 import LoginView from './components/LoginView.vue';
 import MainView from './components/MainView.vue';
-import GitHubInfo from './components/GitHubInfo.vue';
 import ClipboardHistory from './components/ClipboardHistory.vue';
 import AddContent from './components/AddContent.vue';
 import AdminPanel from './components/AdminPanel.vue';
@@ -29,7 +28,6 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 app.component('AppHeader', AppHeader);
 app.component('LoginView', LoginView);
 app.component('MainView', MainView);
-app.component('GitHubInfo', GitHubInfo);
 app.component('ClipboardHistory', ClipboardHistory);
 app.component('AddContent', AddContent);
 app.component('AdminPanel', AdminPanel);

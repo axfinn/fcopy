@@ -1,287 +1,278 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 const database = require('../services/database.js');
-const fileService = require('../services/fileService.js');
 const { authenticateApiKey } = require('../middleware/auth.js');
+const fileService = require('../services/fileService.js');
 
-// 获取剪贴板历史记录
+// 配置multer用于文件上传
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // 确保上传目录存在
+    const uploadDir = path.join(__dirname, '../../uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // 生成唯一文件名
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 限制文件大小为50MB
+  }
+});
+
+// 获取剪贴板历史记录（支持分页、搜索和类型筛选）
 router.get('/', authenticateApiKey, (req, res) => {
   const db = database.getInstance();
   
-  // 获取分页参数
+  // 获取查询参数
   const page = parseInt(req.query.page) || 1;
   const size = parseInt(req.query.size) || 10;
   const search = req.query.search || '';
+  const type = req.query.type || ''; // 获取类型筛选参数
+  
+  // 计算偏移量
   const offset = (page - 1) * size;
   
-  let sql = '';
-  let countSql = '';
-  let params = [];
+  // 构建查询条件
+  let sql = `
+    SELECT id, 
+           CASE WHEN content IS NOT NULL AND content != '' THEN 'text' ELSE 'file' END as type,
+           content, 
+           file_name, 
+           file_path, 
+           mime_type, 
+           file_size, 
+           created_at
+    FROM clipboard 
+  `;
   
-  if (search) {
-    // 如果有搜索关键词，添加搜索条件
-    sql = `
-      SELECT id, content, file_path as filename, file_size as size, mime_type, user_id, created_at, 
-             CASE WHEN file_path IS NOT NULL THEN 'file' ELSE 'text' END as type
-      FROM clipboard 
-      WHERE (content LIKE ? OR file_name LIKE ?)
-      ORDER BY created_at DESC 
-      LIMIT ? OFFSET ?
-    `;
+  let countSql = 'SELECT COUNT(*) as count FROM clipboard';
+  const params = [];
+  const countParams = [];
+  
+  // 添加搜索和类型筛选条件
+  if (search || type) {
+    sql += ' WHERE ';
+    countSql += ' WHERE ';
     
-    countSql = `
-      SELECT COUNT(*) as count
-      FROM clipboard 
-      WHERE (content LIKE ? OR file_name LIKE ?)
-    `;
+    let conditions = [];
     
-    const searchPattern = `%${search}%`;
-    params = [searchPattern, searchPattern, size, offset];
-    const countParams = [searchPattern, searchPattern];
+    // 添加搜索条件
+    if (search) {
+      conditions.push('(content LIKE ? OR file_name LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`);
+      countParams.push(`%${search}%`, `%${search}%`);
+    }
     
-    // 执行计数查询
+    // 添加类型筛选条件
+    if (type) {
+      if (type === 'text') {
+        conditions.push('(content IS NOT NULL AND content != ?)');
+        params.push('');
+        countParams.push('');
+      } else if (type === 'file') {
+        conditions.push('(file_path IS NOT NULL AND file_path != ?)');
+        params.push('');
+        countParams.push('');
+      }
+    }
+    
+    sql += conditions.join(' AND ');
+    countSql += conditions.join(' AND ');
+  }
+  
+  // 添加排序和分页
+  sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+  params.push(size, offset);
+  
+  // 执行查询
+  db.all(sql, params, (err, rows) => {
+    if (err) {
+      console.error('查询剪贴板历史失败:', err);
+      return res.status(500).json({ success: false, error: '查询失败' });
+    }
+    
+    // 获取总数
     db.get(countSql, countParams, (err, countResult) => {
       if (err) {
-        console.error('数据库计数查询错误:', err.message);
-        res.status(500).json({ success: false, error: err.message });
-        return;
+        console.error('查询总数失败:', err);
+        return res.status(500).json({ success: false, error: '查询失败' });
       }
       
-      // 执行数据查询
-      db.all(sql, params, (err, rows) => {
-        if (err) {
-          console.error('数据库数据查询错误:', err.message);
-          res.status(500).json({ success: false, error: err.message });
-          return;
-        }
-        res.json({ 
-          success: true,
-          data: rows,
-          total: countResult.count,
-          page: page,
-          size: size
-        });
+      res.json({
+        success: true,
+        data: rows,
+        total: countResult.count,
+        page: page,
+        size: size
       });
     });
-  } else {
-    // 没有搜索条件的查询
-    sql = `
-      SELECT id, content, file_path as filename, file_size as size, mime_type, user_id, created_at, 
-             CASE WHEN file_path IS NOT NULL THEN 'file' ELSE 'text' END as type
-      FROM clipboard 
-      ORDER BY created_at DESC 
-      LIMIT ? OFFSET ?
-    `;
-    
-    countSql = 'SELECT COUNT(*) as count FROM clipboard';
-    params = [size, offset];
-    
-    // 执行计数查询
-    db.get(countSql, [], (err, countResult) => {
-      if (err) {
-        console.error('数据库计数查询错误:', err.message);
-        res.status(500).json({ success: false, error: err.message });
-        return;
-      }
-      
-      // 执行数据查询
-      db.all(sql, params, (err, rows) => {
-        if (err) {
-          console.error('数据库数据查询错误:', err.message);
-          res.status(500).json({ success: false, error: err.message });
-          return;
-        }
-        res.json({ 
-          success: true,
-          data: rows,
-          total: countResult.count,
-          page: page,
-          size: size
-        });
-      });
-    });
-  }
-});
-
-// 公开文件访问端点（用于显示图片等）
-router.get('/file/:id', (req, res) => {
-  const db = database.getInstance();
-  const fileId = req.params.id;
-  
-  // 查询文件信息
-  const sql = 'SELECT file_path, file_name FROM clipboard WHERE id = ? AND file_path IS NOT NULL';
-  db.get(sql, [fileId], (err, row) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    
-    if (!row) {
-      return res.status(404).json({ error: '文件未找到' });
-    }
-    
-    // 检查文件是否存在
-    if (!fileService.fileExists(row.file_path)) {
-      return res.status(404).json({ error: '文件不存在' });
-    }
-    
-    // 设置正确的Content-Type
-    const mimeType = fileService.getMimeType(row.file_name);
-    if (mimeType) {
-      res.setHeader('Content-Type', mimeType);
-    }
-    
-    // 发送文件
-    res.sendFile(fileService.getAbsolutePath(row.file_path));
   });
 });
 
-// 文件下载端点（需要鉴权）
-router.get('/download/:id', authenticateApiKey, (req, res) => {
-  const db = database.getInstance();
-  const fileId = req.params.id;
-  
-  // 查询文件信息
-  const sql = 'SELECT file_path, file_name FROM clipboard WHERE id = ? AND file_path IS NOT NULL';
-  db.get(sql, [fileId], (err, row) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    
-    if (!row) {
-      return res.status(404).json({ error: '文件未找到' });
-    }
-    
-    // 检查文件是否存在
-    if (!fileService.fileExists(row.file_path)) {
-      return res.status(404).json({ error: '文件不存在' });
-    }
-    
-    // 设置响应头，触发浏览器下载
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(row.file_name)}"`);
-    res.setHeader('Content-Type', 'application/octet-stream');
-    
-    // 发送文件
-    res.sendFile(fileService.getAbsolutePath(row.file_path));
-  });
-});
-
-// 文本内容上传
+// 添加文本内容
 router.post('/text', authenticateApiKey, (req, res) => {
-  const db = database.getInstance();
-  const io = req.app.get('io'); // 从应用设置中获取io实例
-  
   const { content } = req.body;
-  const sql = 'INSERT INTO clipboard (content, user_id) VALUES (?, ?)';
-  db.run(sql, [content, req.user.id], function(err) {
+  const apiKey = req.headers['x-api-key'];
+  
+  if (!content) {
+    return res.status(400).json({ success: false, error: '内容不能为空' });
+  }
+  
+  const db = database.getInstance();
+  const sql = `
+    INSERT INTO clipboard (content, created_at)
+    VALUES (?, datetime('now'))
+  `;
+  
+  db.run(sql, [content], function(err) {
     if (err) {
-      res.status(500).json({ error: err.message });
-      return;
+      console.error('保存文本内容失败:', err);
+      return res.status(500).json({ success: false, error: '保存失败' });
     }
     
-    // 通过 Socket.IO 通知特定用户
-    const data = { 
-      id: this.lastID, 
-      content, 
-      user_id: req.user.id,
-      created_at: new Date().toISOString(),
-      type: 'text'
-    };
-    
-    // 只向该用户广播更新
-    io.to(`user_${req.user.id}`).emit('clipboard-update', data);
-    
-    res.json({ 
-      id: this.lastID, 
-      content,
-      user_id: req.user.id,
-      created_at: new Date().toISOString(),
-      type: 'text'
+    // 获取插入的记录
+    const selectSql = 'SELECT id, \'text\' as type, content, NULL as file_name, NULL as file_path, NULL as mime_type, NULL as file_size, created_at FROM clipboard WHERE id = ?';
+    db.get(selectSql, [this.lastID], (err, row) => {
+      if (err) {
+        console.error('查询插入的记录失败:', err);
+        return res.status(500).json({ success: false, error: '查询失败' });
+      }
+      
+      // 通过WebSocket广播更新
+      req.app.get('io').emit('clipboard-update', row);
+      
+      res.json({ success: true, id: this.lastID, data: row });
     });
   });
 });
 
-// 文件上传
-const upload = fileService.configureMulter();
+// 上传文件
 router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
-  const db = database.getInstance();
-  const io = req.app.get('io'); // 从应用设置中获取io实例
-  
   if (!req.file) {
-    return res.status(400).json({ error: '没有文件被上传' });
+    return res.status(400).json({ success: false, error: '没有上传文件' });
   }
   
   const { originalname, mimetype, size, path: filePath } = req.file;
+  const db = database.getInstance();
   
-  const sql = 'INSERT INTO clipboard (file_path, file_name, file_size, mime_type, user_id) VALUES (?, ?, ?, ?, ?)';
-  db.run(sql, [filePath, originalname, size, mimetype, req.user.id], function(err) {
+  const sql = `
+    INSERT INTO clipboard (file_name, file_path, mime_type, file_size, created_at)
+    VALUES (?, ?, ?, ?, datetime('now'))
+  `;
+  
+  db.run(sql, [originalname, filePath, mimetype, size], function(err) {
     if (err) {
-      res.status(500).json({ error: err.message });
-      return;
+      console.error('保存文件信息失败:', err);
+      // 删除已上传的文件
+      fs.unlinkSync(req.file.path);
+      return res.status(500).json({ success: false, error: '保存失败' });
     }
     
-    // 通过 Socket.IO 通知特定用户
-    const data = { 
-      id: this.lastID, 
-      file_path: filePath,
-      file_name: originalname,
-      file_size: size,
-      mime_type: mimetype,
-      user_id: req.user.id,
-      created_at: new Date().toISOString(),
-      type: 'file'
-    };
-    
-    // 只向该用户广播更新
-    io.to(`user_${req.user.id}`).emit('clipboard-update', data);
-    
-    res.json({ 
-      id: this.lastID, 
-      file_path: filePath,
-      file_name: originalname,
-      file_size: size,
-      mime_type: mimetype,
-      user_id: req.user.id,
-      created_at: new Date().toISOString(),
-      type: 'file'
+    // 获取插入的记录
+    const selectSql = 'SELECT id, \'file\' as type, NULL as content, file_name, file_path, mime_type, file_size, created_at FROM clipboard WHERE id = ?';
+    db.get(selectSql, [this.lastID], (err, row) => {
+      if (err) {
+        console.error('查询插入的记录失败:', err);
+        return res.status(500).json({ success: false, error: '查询失败' });
+      }
+      
+      // 通过WebSocket广播更新
+      req.app.get('io').emit('clipboard-update', row);
+      
+      res.json({ success: true, id: this.lastID, data: row });
     });
   });
 });
 
-// 删除指定内容 (只能删除自己的内容)
-router.delete('/:id', authenticateApiKey, (req, res) => {
-  const db = database.getInstance();
+// 获取文件
+router.get('/file/:id', authenticateApiKey, (req, res) => {
   const { id } = req.params;
+  const db = database.getInstance();
   
-  // 先获取文件路径以删除文件，并验证所有权
-  db.get('SELECT file_path FROM clipboard WHERE id = ? AND user_id = ?', [id, req.user.id], (err, row) => {
+  const sql = 'SELECT file_path, mime_type, file_name FROM clipboard WHERE id = ? AND file_path IS NOT NULL';
+  db.get(sql, [id], (err, row) => {
     if (err) {
-      res.status(500).json({ error: err.message });
-      return;
+      console.error('查询文件信息失败:', err);
+      return res.status(500).json({ success: false, error: '查询失败' });
     }
     
     if (!row) {
-      return res.status(404).json({ error: '内容未找到或无权限访问' });
+      return res.status(404).json({ success: false, error: '文件不存在' });
     }
     
-    // 从数据库中删除记录
-    db.run('DELETE FROM clipboard WHERE id = ? AND user_id = ?', [id, req.user.id], function(err) {
+    // 检查文件是否存在
+    if (!fs.existsSync(row.file_path)) {
+      return res.status(404).json({ success: false, error: '文件不存在' });
+    }
+    
+    // 设置响应头
+    res.setHeader('Content-Type', row.mime_type);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name)}"`);
+    
+    // 发送文件
+    const fileStream = fs.createReadStream(row.file_path);
+    fileStream.pipe(res);
+    
+    fileStream.on('error', (err) => {
+      console.error('读取文件失败:', err);
+      res.status(500).json({ success: false, error: '读取文件失败' });
+    });
+  });
+});
+
+// 删除剪贴板项目
+router.delete('/:id', authenticateApiKey, (req, res) => {
+  const { id } = req.params;
+  const db = database.getInstance();
+  
+  // 先查询项目信息
+  const selectSql = 'SELECT file_path FROM clipboard WHERE id = ?';
+  db.get(selectSql, [id], (err, row) => {
+    if (err) {
+      console.error('查询项目信息失败:', err);
+      return res.status(500).json({ success: false, error: '查询失败' });
+    }
+    
+    if (!row) {
+      return res.status(404).json({ success: false, error: '项目不存在' });
+    }
+    
+    // 如果是文件，删除文件
+    if (row.file_path) {
+      try {
+        if (fs.existsSync(row.file_path)) {
+          fs.unlinkSync(row.file_path);
+        }
+      } catch (err) {
+        console.error('删除文件失败:', err);
+      }
+    }
+    
+    // 从数据库删除记录
+    const deleteSql = 'DELETE FROM clipboard WHERE id = ?';
+    db.run(deleteSql, [id], function(err) {
       if (err) {
-        res.status(500).json({ error: err.message });
-        return;
+        console.error('删除记录失败:', err);
+        return res.status(500).json({ success: false, error: '删除失败' });
       }
       
       if (this.changes === 0) {
-        return res.status(404).json({ error: '内容未找到或无权限访问' });
+        return res.status(404).json({ success: false, error: '项目不存在' });
       }
       
-      // 如果有文件，也删除文件
-      if (row.file_path) {
-        fileService.deleteFile(row.file_path).catch(err => {
-          console.error('删除文件失败:', err);
-        });
-      }
-      
-      res.json({ message: '删除成功' });
+      res.json({ success: true, message: '删除成功' });
     });
   });
 });

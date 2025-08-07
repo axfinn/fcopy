@@ -36,11 +36,6 @@
           <i class="el-icon-key"></i> 安全登录
         </el-button>
         
-        <div class="auth-hint">
-          <p><i class="el-icon-info"></i> 输入您的API密钥以访问剪贴板同步服务</p>
-          <p><i class="el-icon-info"></i> 管理员密钥可访问用户管理和系统日志</p>
-        </div>
-        
         <div class="features">
           <div class="feature-item">
             <i class="el-icon-upload"></i>
@@ -58,38 +53,12 @@
       </el-card>
     </div>
     
-    <!-- 底部使用说明 -->
-    <div class="login-footer">
-      <div class="usage-guide-content">
-        <h3>使用说明</h3>
-        <ul>
-          <li>使用 Ctrl+C / Cmd+C 复制内容到剪贴板</li>
-          <li>使用 Ctrl+V / Cmd+V 粘贴截图或文件</li>
-          <li>文本内容会自动同步到所有连接的设备</li>
-          <li>文件和图片可通过"下载"按钮保存到本地</li>
-          <li>支持实时同步，无需手动刷新</li>
-        </ul>
-      </div>
-    </div>
-    
-    <!-- GitHub信息 -->
-    <div class="login-github-footer" v-if="githubInfo">
-      <GitHubInfo 
-        :github-info="githubInfo" 
-        :is-authenticated="false"
-      />
-    </div>
   </div>
 </template>
 
 <script>
-import GitHubInfo from './GitHubInfo.vue';
-
 export default {
   name: 'LoginView',
-  components: {
-    GitHubInfo
-  },
   props: {
     githubInfo: {
       type: Object,
@@ -144,10 +113,13 @@ export default {
   width: 100%;
   height: 100%;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   overflow: auto;
   z-index: 2000;
+  padding: 20px 0;
+  box-sizing: border-box;
 }
 
 .background-container {
@@ -171,9 +143,9 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100%;
   width: 100%;
-  padding: 20px;
+  flex: 1;
+  padding: 20px 20px 10px;
   box-sizing: border-box;
 }
 
@@ -224,6 +196,7 @@ export default {
   color: #666;
   font-size: 1rem;
   margin: 0;
+  line-height: 1.5;
 }
 
 .auth-input {
@@ -248,22 +221,6 @@ export default {
   box-shadow: 0 8px 20px rgba(64, 158, 255, 0.4);
 }
 
-.auth-hint {
-  font-size: 14px;
-  color: #666;
-  text-align: center;
-  margin-bottom: 30px;
-}
-
-.auth-hint p {
-  margin: 10px 0;
-}
-
-.auth-hint i {
-  margin-right: 5px;
-  color: #409EFF;
-}
-
 .features {
   display: flex;
   justify-content: space-between;
@@ -275,10 +232,14 @@ export default {
   flex: 1;
   min-width: 100px;
   text-align: center;
-  padding: 10px;
+  padding: 12px;
   border-radius: 10px;
   background: #f5f7fa;
   transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .feature-item:hover {
@@ -291,7 +252,6 @@ export default {
   font-size: 20px;
   color: #409EFF;
   margin-bottom: 8px;
-  display: block;
 }
 
 .feature-item span {
@@ -299,61 +259,17 @@ export default {
   color: #666;
 }
 
-/* 登录页底部使用说明 */
-.login-footer {
-  position: fixed;
-  bottom: 40px;
-  left: 0;
-  width: 100%;
-  background-color: rgba(52, 52, 52, 0.9);
-  color: white;
-  z-index: 2002;
-  backdrop-filter: blur(5px);
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.usage-guide-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 10px 20px;
-  text-align: center;
-}
-
-.usage-guide-content h3 {
-  margin: 0 0 5px 0;
-  font-size: 0.9rem;
-  color: #fff;
-}
-
-.usage-guide-content ul {
-  list-style-type: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-}
-
-.usage-guide-content li {
-  background-color: rgba(64, 158, 255, 0.3);
-  padding: 5px 10px;
-  border-radius: 15px;
-  font-size: 0.75rem;
-}
-
-/* 登录页GitHub信息 */
-.login-github-footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  z-index: 2003;
-}
-
 @media (max-width: 768px) {
+  .login-background {
+    padding: 15px 0;
+  }
+  
+  .auth-container {
+    padding: 15px 15px 5px;
+  }
+  
   .auth-card {
-    margin: 20px;
+    margin: 0;
     padding: 30px 20px;
   }
   
@@ -370,24 +286,35 @@ export default {
     font-size: 30px;
   }
   
-  .usage-guide-content ul {
-    flex-direction: column;
-    gap: 5px;
+  .features {
+    gap: 12px;
   }
   
-  .usage-guide-content li {
-    padding: 3px 8px;
-    font-size: 0.7rem;
+  .feature-item {
+    min-width: 80px;
+    padding: 10px;
   }
   
-  .login-footer {
-    bottom: 70px;
+  .feature-item i {
+    font-size: 18px;
+  }
+  
+  .feature-item span {
+    font-size: 12px;
   }
 }
 
 @media (max-width: 480px) {
+  .login-background {
+    padding: 10px 0;
+  }
+  
+  .auth-container {
+    padding: 10px 10px 5px;
+  }
+  
   .auth-card {
-    margin: 15px;
+    margin: 0;
     padding: 25px 15px;
   }
   
@@ -399,21 +326,44 @@ export default {
     font-size: 0.9rem;
   }
   
+  .logo {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .logo i {
+    font-size: 24px;
+  }
+  
+  .auth-input {
+    margin: 20px 0;
+  }
+  
+  .auth-button {
+    padding: 12px;
+    font-size: 14px;
+  }
+  
   .features {
+    flex-direction: column;
     gap: 10px;
   }
   
   .feature-item {
-    min-width: 80px;
-    padding: 8px 5px;
+    min-width: auto;
+    padding: 12px;
+    flex-direction: row;
+    text-align: left;
+    gap: 10px;
   }
   
   .feature-item i {
     font-size: 18px;
+    margin-bottom: 0;
   }
   
   .feature-item span {
-    font-size: 12px;
+    font-size: 13px;
   }
 }
 </style>

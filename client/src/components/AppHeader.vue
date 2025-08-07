@@ -5,38 +5,6 @@
         <h1><i class="el-icon-copy-document"></i> 跨平台剪贴板同步工具</h1>
       </div>
       <div class="header-right">
-        <div class="settings-panel" v-if="isAuthenticated">
-          <el-popover
-            placement="bottom"
-            :width="200"
-            trigger="click"
-          >
-            <template #reference>
-              <el-button 
-                type="info" 
-                size="small" 
-                circle
-                class="settings-button"
-              >
-                <i class="el-icon-setting"></i>
-              </el-button>
-            </template>
-            <div class="settings-content">
-              <div class="setting-item">
-                <label>背景透明度</label>
-                <el-slider
-                  v-model="backgroundOpacity"
-                  :min="0.1"
-                  :max="1"
-                  :step="0.05"
-                  @change="onOpacityChange"
-                  :show-tooltip="true"
-                />
-                <div class="opacity-value">{{ Math.round(backgroundOpacity * 100) }}%</div>
-              </div>
-            </div>
-          </el-popover>
-        </div>       
         
         <div class="auth-info" v-if="isAuthenticated">
           <el-button 
@@ -68,7 +36,6 @@ export default {
   emits: ['logout'],
   data() {
     return {
-      backgroundOpacity: store.state.backgroundOpacity || 0.95
     };
   },
   methods: {
@@ -76,20 +43,8 @@ export default {
       this.$emit('logout');
     },
     
-    onOpacityChange(value) {
-      store.setBackgroundOpacity(value);
-      // 触发自定义事件通知其他组件背景透明度已更改
-      window.dispatchEvent(new CustomEvent('backgroundOpacityChange', { detail: value }));
-    }
   },
   
-  mounted() {
-    // 监听背景透明度变化事件
-    this.backgroundOpacity = store.state.backgroundOpacity;
-    window.addEventListener('backgroundOpacityChange', (event) => {
-      this.backgroundOpacity = event.detail;
-    });
-  }
 }
 </script>
 

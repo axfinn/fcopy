@@ -60,15 +60,13 @@
           />
         </el-main>
         
-        <!-- GitHub信息 -->
-        <el-footer class="github-footer" v-if="store.state.githubInfo">
-          <GitHubInfo 
-            :github-info="store.state.githubInfo" 
-            :is-authenticated="store.state.isAuthenticated"
-          />
-        </el-footer>
       </el-container>
     </div>
+    
+    <!-- 底部信息 -->
+    <Footer 
+      :github-info="store.state.githubInfo"
+    />
     
     <!-- 文本预览对话框 -->
     <el-dialog
@@ -120,16 +118,16 @@ import api from './services/api.js';
 import socket from './services/socket.js';
 import LoginView from './components/LoginView.vue';
 import MainView from './components/MainView.vue';
-import GitHubInfo from './components/GitHubInfo.vue';
-import AppHeader from './components/AppHeader.vue'; // 添加导入
+import Footer from './components/Footer.vue';
+import AppHeader from './components/AppHeader.vue';
 
 export default defineComponent({
   name: 'ClipboardApp',
   components: {
     LoginView,
     MainView,
-    GitHubInfo,
-    AppHeader // 添加组件注册
+    Footer,
+    AppHeader
   },
   data() {
     return {
@@ -156,9 +154,6 @@ export default defineComponent({
     if (storedApiKey) {
       this.handleAuthenticate(storedApiKey);
     }
-    
-    // 获取GitHub信息
-    this.fetchGithubInfo();
     
     // 初始化背景
     store.mutations.initializeBackground();
@@ -615,17 +610,6 @@ export default defineComponent({
       this.handleCurrentChange(page);
     },
     
-    // 获取GitHub信息
-    async fetchGithubInfo() {
-      try {
-        const response = await api.getGithubInfo();
-        if (response.success) {
-          store.mutations.SET_GITHUB_INFO(response.data);
-        }
-      } catch (error) {
-        console.error('获取GitHub信息失败:', error);
-      }
-    },
     
     // 处理粘贴事件
     async handlePaste(event) {
@@ -692,6 +676,8 @@ export default defineComponent({
   color: #2c3e50;
   min-height: 100vh;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 背景样式 */
@@ -727,12 +713,17 @@ export default defineComponent({
 }
 
 .app-container {
-  min-height: 100vh;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 120px); /* 减去头部和底部的高度 */
   padding-top: 60px;
 }
 
 .main-container {
-  min-height: calc(100vh - 60px);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .content-main {

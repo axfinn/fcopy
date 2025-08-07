@@ -62,6 +62,11 @@ class ClipboardApi {
       searchParams.append('search', params.search);
     }
     
+    // 添加类型筛选参数
+    if (params.type !== undefined && params.type !== '') {
+      searchParams.append('type', params.type);
+    }
+    
     const queryString = searchParams.toString();
     const url = queryString ? `/clipboard?${queryString}` : '/clipboard';
     

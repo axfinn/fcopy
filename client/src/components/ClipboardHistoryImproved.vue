@@ -5,27 +5,122 @@
         <h3><el-icon><Document /></el-icon> 剪贴板历史</h3>
       </div>
 
-      <!-- 搜索区域 -->
+      <!-- 搜索和筛选区域 -->
       <div class="search-area">
-        <el-input
-          v-model="searchForm.keyword"
-          placeholder="搜索剪贴板内容..."
-          clearable
-          @clear="resetSearch"
-          @keyup.enter="handleSearch"
-          class="search-input"
-        >
-          <template #append>
-            <el-button 
-              :icon="Search" 
-              @click="handleSearch"
-            ></el-button>
-          </template>
-        </el-input>
-        <el-button @click="resetSearch" class="reset-btn">重置</el-button>
+        <div class="search-controls">
+          <el-input
+            v-model="searchForm.keyword"
+            placeholder="搜索剪贴板内容..."
+            clearable
+            @clear="resetSearch"
+            @keyup.enter="handleSearch"
+            class="search-input"
+          >
+            <template #append>
+              <el-button 
+                :icon="Search" 
+                @click="handleSearch"
+              ></el-button>
+            </template>
+          </el-input>
+          
+          <el-select 
+            v-model="searchForm.type" 
+            placeholder="类型筛选" 
+            clearable
+            @change="handleSearch"
+            class="type-filter"
+          >
+            <el-option label="文本" value="text"></el-option>
+            <el-option label="文件" value="file"></el-option>
+          </el-select>
+          
+          <el-button @click="resetSearch" class="reset-btn">重置</el-button>
+        </div>
       </div>
 
-      <!-- 数据表格 -->
+      <!-- 移动端列表视图 -->
+      <div class="mobile-list" v-if="isMobile">
+        <div 
+          v-for="item in displayData" 
+          :key="item.id" 
+          class="mobile-item"
+        >
+          <div class="item-header">
+            <div class="item-type">
+              <el-tag :type="item.type === 'text' ? 'primary' : 'success'">
+                {{ item.type === 'text' ? '文本' : '文件' }}
+              </el-tag>
+            </div>
+            <div class="item-time">
+              {{ formatToShanghaiTime(item.created_at) }}
+            </div>
+          </div>
+          
+          <div class="item-content">
+            <div v-if="item.type === 'text'" class="text-content">
+              <div class="text-preview">{{ truncateText(item.content, 100) }}</div>
+              <el-button 
+                type="primary" 
+                size="small"
+                @click="copyToClipboard(item.content)"
+                class="copy-btn-mobile"
+              >
+                复制
+              </el-button>
+            </div>
+            
+            <div v-else class="file-content">
+              <div class="file-info">
+                <div class="file-name">{{ item.file_name }}</div>
+                <div class="file-meta">
+                  <span class="file-size">{{ formatFileSize(item.file_size) }}</span>
+                </div>
+              </div>
+              
+              <div class="file-actions">
+                <el-button 
+                  type="primary" 
+                  size="small"
+                  @click="downloadFile(item.id, item.file_name, item.mime_type)"
+                >
+                  下载
+                </el-button>
+                
+                <el-button 
+                  v-if="isTextFile(item.mime_type)" 
+                  size="small"
+                  @click="previewTextFile(item)"
+                >
+                  预览
+                </el-button>
+                
+                <el-button 
+                  v-else-if="isPdfFile(item.mime_type)" 
+                  size="small"
+                  @click="previewPdfFile(item)"
+                >
+                  预览
+                </el-button>
+                
+                <el-button 
+                  v-else-if="isImage(item.mime_type)" 
+                  size="small"
+                  @click="previewImage(item)"
+                >
+                  预览
+                </el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="displayData.length === 0 && !loading" class="no-data">
+          暂无数据
+        </div>
+      </div>
+
+      <!-- 桌面端表格视图 -->
       <el-table 
         :data="displayData" 
         style="width: 100%"
@@ -33,6 +128,7 @@
         element-loading-text="加载中..."
         :default-sort="{prop: 'created_at', order: 'descending'}"
         stripe
+        v-else
       >
         <el-table-column prop="id" label="ID" width="60" sortable></el-table-column>
         <el-table-column prop="type" label="类型" width="100">
@@ -200,13 +296,15 @@ export default {
       loading: false,
       tableData: [],
       searchForm: {
-        keyword: ''
+        keyword: '',
+        type: '' // 添加类型筛选
       },
       pagination: {
         currentPage: 1,
         pageSize: 10,
         total: 0
-      }
+      },
+      isMobile: false // 添加移动端检测
     };
   },
   computed: {
@@ -220,6 +318,14 @@ export default {
       api.setApiKey(this.apiKey);
       this.fetchData();
     }
+    // 检测是否为移动端
+    this.checkIsMobile();
+    // 监听窗口大小变化
+    window.addEventListener('resize', this.checkIsMobile);
+  },
+  beforeUnmount() {
+    // 移除事件监听器
+    window.removeEventListener('resize', this.checkIsMobile);
   },
   watch: {
     apiKey(newVal) {
@@ -283,6 +389,11 @@ export default {
     }
   },
   methods: {
+    // 检测是否为移动端
+    checkIsMobile() {
+      this.isMobile = window.innerWidth <= 768;
+    },
+    
     // 获取数据
     async fetchData() {
       this.loading = true;
@@ -290,7 +401,8 @@ export default {
         const params = {
           page: this.pagination.currentPage,
           size: this.pagination.pageSize,
-          search: this.searchForm.keyword || undefined // 只有在有搜索词时才传递参数
+          search: this.searchForm.keyword || undefined, // 只有在有搜索词时才传递参数
+          type: this.searchForm.type || undefined // 添加类型筛选参数
         };
 
         const response = await api.getClipboardHistory(params);
@@ -316,6 +428,7 @@ export default {
     // 重置搜索
     resetSearch() {
       this.searchForm.keyword = '';
+      this.searchForm.type = ''; // 重置类型筛选
       this.pagination.currentPage = 1;
       this.fetchData();
     },
@@ -479,18 +592,117 @@ export default {
 }
 
 .search-area {
-  display: flex;
   margin-bottom: 20px;
+}
+
+.search-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   align-items: center;
 }
 
 .search-input {
-  width: 300px;
-  margin-right: 10px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.type-filter {
+  width: 120px;
 }
 
 .reset-btn {
   margin-left: 10px;
+}
+
+/* 移动端列表样式 */
+.mobile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.mobile-item {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 15px;
+  background-color: #fafafa;
+}
+
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.item-time {
+  font-size: 12px;
+  color: #999;
+}
+
+.item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.text-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.text-preview {
+  font-size: 14px;
+  color: #333;
+  word-break: break-all;
+}
+
+.file-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.file-name {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.file-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-size {
+  font-size: 12px;
+  color: #999;
+}
+
+.file-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.copy-btn-mobile {
+  align-self: flex-start;
+}
+
+.no-data {
+  text-align: center;
+  padding: 20px;
+  color: #999;
 }
 
 .content-preview {
@@ -529,5 +741,103 @@ export default {
   text-align: center;
   display: flex;
   justify-content: center;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .card {
+    padding: 15px;
+  }
+  
+  .search-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-input {
+    min-width: auto;
+  }
+  
+  .type-filter {
+    width: 100%;
+  }
+  
+  .reset-btn {
+    margin-left: 0;
+  }
+  
+  .el-table {
+    font-size: 12px;
+  }
+  
+  .el-table th,
+  .el-table td {
+    padding: 8px 0;
+  }
+  
+  .content-preview {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+  
+  .file-preview {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+  
+  .file-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .el-button {
+    margin-bottom: 5px;
+    padding: 8px 12px;
+  }
+  
+  .el-dropdown {
+    width: 100%;
+  }
+  
+  .el-dropdown .el-button {
+    width: 100%;
+    text-align: left;
+  }
+  
+  .pagination-area {
+    overflow-x: auto;
+    padding-bottom: 10px;
+  }
+  
+  .el-pagination {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  
+  .el-pagination button,
+  .el-pagination span:not([class*='suffix']),
+  .el-pagination .el-input__inner {
+    padding: 0 5px;
+    min-width: 24px;
+    height: 24px;
+    line-height: 24px;
+  }
+  
+  .el-pagination .el-select .el-input__inner {
+    height: 24px;
+    line-height: 24px;
+  }
+  
+  .el-pagination .el-select .el-input__icon {
+    line-height: 24px;
+  }
 }
 </style>
