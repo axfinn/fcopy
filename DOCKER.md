@@ -11,7 +11,7 @@ docker pull axiu/fcopy:latest
 或者拉取特定版本：
 
 ```bash
-docker pull axiu/fcopy:1.2.10
+docker pull axiu/fcopy:1.2.11
 ```
 
 ## 快速启动
