@@ -7,6 +7,7 @@
       <div class="header-right">
         
         <div class="auth-info" v-if="isAuthenticated">
+          <span class="username" v-if="username">欢迎, {{ username }}!</span>
           <el-button 
             type="danger" 
             size="small" 
@@ -31,6 +32,10 @@ export default {
     isAuthenticated: {
       type: Boolean,
       required: true
+    },
+    username: {
+      type: String,
+      default: ''
     }
   },
   emits: ['logout'],
@@ -142,9 +147,12 @@ export default {
 .auth-info {
   display: flex;
   align-items: center;
-  margin: 10px 0;
-  z-index: 102;
-  position: relative;
+  gap: 15px;
+}
+
+.username {
+  color: white;
+  font-weight: 500;
 }
 
 .logout-button {

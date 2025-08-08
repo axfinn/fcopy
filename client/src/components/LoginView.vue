@@ -52,6 +52,21 @@
         </div>
       </el-card>
     </div>
+    
+    <!-- GitHub信息 -->
+    <div class="github-info">
+      <div class="github-info-content">
+        <div class="github-text">
+          <i class="el-icon-collection"></i>
+          本项目已在 GitHub 开源，欢迎 Star 和 Fork
+        </div>
+        <div class="github-links">
+          <a href="https://github.com/axfinn/fcopy" target="_blank" rel="noopener">GitHub 项目</a>
+          <a href="https://github.com/axfinn/fcopy/issues" target="_blank" rel="noopener">问题反馈</a>
+          <a href="https://github.com/axfinn/fcopy/blob/main/README.md" target="_blank" rel="noopener">部署文档</a>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -258,6 +273,52 @@ export default {
   color: #666;
 }
 
+/* GitHub信息样式 */
+.github-info {
+  width: 100%;
+  background-color: rgba(52, 52, 52, 0.9);
+  color: white;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  margin-top: auto;
+}
+
+.github-info-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.github-text {
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.github-links {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.github-links a {
+  color: #409EFF;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.3s ease;
+}
+
+.github-links a:hover {
+  color: #66b1ff;
+  text-decoration: underline;
+}
+
 @media (max-width: 768px) {
   .login-background {
     padding: 15px 0;
@@ -300,6 +361,27 @@ export default {
   
   .feature-item span {
     font-size: 12px;
+  }
+  
+  .github-info-content {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .github-text {
+    justify-content: center;
+  }
+  
+  .github-stats {
+    justify-content: center;
+  }
+  
+  .github-stat-item {
+    font-size: 0.8rem;
+  }
+  
+  .github-links a {
+    font-size: 0.8rem;
   }
 }
 
@@ -364,6 +446,22 @@ export default {
   .feature-item span {
     font-size: 13px;
   }
+  
+  .github-info-content {
+    padding: 12px 15px;
+  }
+  
+  .github-text {
+    font-size: 0.8rem;
+  }
+  
+  .github-links {
+    gap: 10px;
+  }
+  
+  .github-links a {
+    font-size: 0.8rem;
+  }
 }
 
 /* 超小屏幕设备优化 */
@@ -409,6 +507,18 @@ export default {
   
   .feature-item span {
     font-size: 12px;
+  }
+  
+  .github-info-content {
+    padding: 10px 12px;
+  }
+  
+  .github-text {
+    font-size: 0.75rem;
+  }
+  
+  .github-links a {
+    font-size: 0.75rem;
   }
 }
 </style>

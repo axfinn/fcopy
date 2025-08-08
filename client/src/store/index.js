@@ -7,6 +7,7 @@ const state = reactive({
   isAuthenticated: false,
   apiKey: null,
   isAdmin: false,
+  username: null,
   users: [],
   activeUsers: [],
   clipboardItems: [],
@@ -39,6 +40,10 @@ const mutations = {
 
   SET_ADMIN(isAdmin) {
     state.isAdmin = isAdmin;
+  },
+
+  SET_USERNAME(username) {
+    state.username = username;
   },
 
   SET_API_KEY(apiKey) {

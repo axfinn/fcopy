@@ -5,7 +5,6 @@ import LoginView from './components/LoginView.vue';
 import MainView from './components/MainView.vue';
 import ClipboardHistory from './components/ClipboardHistory.vue';
 import AddContent from './components/AddContent.vue';
-import AdminPanel from './components/AdminPanel.vue';
 import MyConnections from './components/MyConnections.vue';
 import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';
@@ -30,7 +29,6 @@ app.component('LoginView', LoginView);
 app.component('MainView', MainView);
 app.component('ClipboardHistory', ClipboardHistory);
 app.component('AddContent', AddContent);
-app.component('AdminPanel', AdminPanel);
 app.component('MyConnections', MyConnections);
 
 app.mount('#app');

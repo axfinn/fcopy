@@ -37,7 +37,7 @@
       <el-tab-pane label="管理面板" name="admin" v-if="isAdmin">
         <el-row :gutter="20">
           <el-col :span="24">
-            <AdminPanel 
+            <AdminDashboard 
               :users="users"
               :active-users="activeUsers"
               :access-logs="accessLogs"
@@ -46,7 +46,9 @@
               :total-items="totalItems"
               @add-user="$emit('add-user', $event)"
               @delete-user="$emit('delete-user', $event)"
+              @update-user-apikey="$emit('update-user-apikey', $event)"
               @page-change="$emit('page-change', $event)"
+              @fetch-admin-data="$emit('fetch-admin-data')"
             />
           </el-col>
         </el-row>
@@ -69,7 +71,7 @@
 <script>
 import ClipboardHistoryImproved from './ClipboardHistoryImproved.vue';
 import AddContent from './AddContent.vue';
-import AdminPanel from './AdminPanel.vue';
+import AdminDashboard from './AdminDashboard.vue';
 import MyConnections from './MyConnections.vue';
 
 export default {
@@ -77,7 +79,7 @@ export default {
   components: {
     ClipboardHistoryImproved,
     AddContent,
-    AdminPanel,
+    AdminDashboard,
     MyConnections
   },
   props: {
@@ -126,6 +128,10 @@ export default {
     
     fetchActiveUsers() {
       this.$emit('fetch-active-users');
+    },
+    
+    fetchAdminData() {
+      this.$emit('fetch-admin-data');
     }
   },
   watch: {
@@ -135,10 +141,15 @@ export default {
         if (newValue === 'user-info' && this.activeUsers.length === 0) {
           this.fetchActiveUsers();
         }
+        // 当管理员切换到管理面板标签页时，获取相关数据
+        if (newValue === 'admin' && this.isAdmin) {
+          this.fetchAdminData();
+        }
       },
-      immediate: false
+      immediate: true // 立即执行一次，确保初始加载时也能获取数据
     }
   },
+  emits: ['page-change', 'size-change', 'search', 'delete-item', 'preview-text', 'preview-file', 'copy-to-clipboard', 'add-user', 'delete-user', 'update-user-apikey', 'tab-change', 'fetch-active-users', 'fetch-admin-data']
 };
 </script>
 

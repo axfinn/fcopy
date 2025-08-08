@@ -22,6 +22,7 @@
     <AppHeader 
       v-if="store.state.isAuthenticated"
       :is-authenticated="store.state.isAuthenticated"
+      :username="store.state.username"
       @logout="handleLogout"
     />
     
@@ -233,13 +234,14 @@ export default defineComponent({
     // 处理用户认证
     async handleAuthenticate(apiKey) {
       try {
+        store.mutations.SET_API_KEY(apiKey);
         const response = await api.authenticate(apiKey);
+        
         if (response.success) {
-          // 更新认证状态
+          // 设置认证状态
           store.mutations.SET_AUTHENTICATED(true);
-          store.mutations.SET_API_KEY(apiKey);
-          // 修复：正确访问认证响应中的管理员字段
           store.mutations.SET_ADMIN(response.admin);
+          store.mutations.SET_USERNAME(response.username || 'Unknown');
           
           // 保存API密钥到本地存储
           localStorage.setItem('clipboard_api_key', apiKey);
@@ -247,7 +249,7 @@ export default defineComponent({
           // 初始化WebSocket连接
           this.initWebSocket();
           
-          // 获取初始数据
+          // 加载初始数据
           await this.loadInitialData();
           
           if (window.$message) {
@@ -260,6 +262,7 @@ export default defineComponent({
         console.error('认证失败:', error);
         store.mutations.SET_AUTHENTICATED(false);
         store.mutations.SET_API_KEY(null);
+        store.mutations.SET_USERNAME(null);
         localStorage.removeItem('clipboard_api_key');
         
         if (window.$message) {
@@ -319,23 +322,21 @@ export default defineComponent({
     
     // 获取活跃用户
     async fetchActiveUsers() {
-      if (!store.state.isAdmin) {
-        try {
-          store.mutations.SET_LOADING('activeUsers', true);
-          const response = await api.getActiveUsers();
-          if (response.success) {
-            store.mutations.SET_ACTIVE_USERS(response.data);
-          } else {
-            throw new Error(response.error || '获取活跃用户失败');
-          }
-        } catch (error) {
-          console.error('获取活跃用户失败:', error);
-          if (window.$message) {
-            window.$message.error(error.message || '获取活跃用户失败');
-          }
-        } finally {
-          store.mutations.SET_LOADING('activeUsers', false);
+      try {
+        store.mutations.SET_LOADING('activeUsers', true);
+        const response = await api.getActiveUsers();
+        if (response.success) {
+          store.mutations.SET_ACTIVE_USERS(response.data);
+        } else {
+          throw new Error(response.error || '获取活跃用户失败');
         }
+      } catch (error) {
+        console.error('获取活跃用户失败:', error);
+        if (window.$message) {
+          window.$message.error(error.message || '获取活跃用户失败');
+        }
+      } finally {
+        store.mutations.SET_LOADING('activeUsers', false);
       }
     },
     
@@ -435,6 +436,7 @@ export default defineComponent({
       store.mutations.SET_AUTHENTICATED(false);
       store.mutations.SET_API_KEY(null);
       store.mutations.SET_ADMIN(false);
+      store.mutations.SET_USERNAME(''); // 添加清除用户名
       
       // 清除本地存储
       localStorage.removeItem('clipboard_api_key');
@@ -601,6 +603,15 @@ export default defineComponent({
       }
     },
     
+    // 处理管理员面板数据获取
+    async handleFetchAdminData() {
+      if (store.state.isAdmin) {
+        await this.updateUsers();
+        await this.updateAccessLogs({ page: 1, size: store.state.pageSize });
+        await this.fetchActiveUsers();
+      }
+    },
+    
     // 处理页码变化
     handleCurrentChange(page) {
       store.mutations.SET_CURRENT_PAGE(page);
@@ -611,7 +622,9 @@ export default defineComponent({
           this.updateClipboardItems({ page });
           break;
         case 'admin':
+          // 管理员面板需要同时更新访问日志和在线用户
           this.updateAccessLogs({ page });
+          this.fetchActiveUsers();
           break;
       }
     },
@@ -627,7 +640,9 @@ export default defineComponent({
           this.updateClipboardItems({ page: 1, size });
           break;
         case 'admin':
+          // 管理员面板需要同时更新访问日志和在线用户
           this.updateAccessLogs({ page: 1, size });
+          this.fetchActiveUsers();
           break;
       }
     },
@@ -642,6 +657,15 @@ export default defineComponent({
     // 处理页面变化
     handlePageChange(page) {
       this.handleCurrentChange(page);
+    },
+
+    // 处理管理员面板数据获取
+    async handleFetchAdminData() {
+      if (store.state.isAdmin) {
+        await this.updateUsers();
+        await this.updateAccessLogs({ page: 1, size: store.state.pageSize });
+        await this.fetchActiveUsers();
+      }
     },
     
     
