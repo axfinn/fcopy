@@ -161,10 +161,26 @@ io.on('connection', (socket) => {
   socket.connectedAt = new Date();
   
   // 将用户加入其专属房间
-  socket.join(`user_${socket.user.id}`);
+  const userId = socket.user.id;
+  socket.join(`user_${userId}`);
+  
+  // 通知用户自己的连接状态
+  socket.to(`user_${userId}`).emit('user_status', { 
+    userId: userId,
+    status: 'connected',
+    timestamp: new Date()
+  });
   
   socket.on('disconnect', () => {
     console.log(`用户 ${socket.user.username} 已断开连接，Socket ID: ${socket.id}`);
+    
+    // 清理用户连接信息
+    socket.to(`user_${userId}`).emit('user_status', { 
+      userId: userId,
+      status: 'disconnected',
+      timestamp: new Date(),
+      socketId: socket.id
+    });
   });
 });
 

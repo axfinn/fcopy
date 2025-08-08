@@ -44,7 +44,7 @@ router.get('/', authenticateApiKey, (req, res) => {
   // 计算偏移量
   const offset = (page - 1) * size;
   
-  // 构建查询条件
+  // 构建查询条件 - 添加用户过滤
   let sql = `
     SELECT id, 
            CASE WHEN content IS NOT NULL AND content != '' THEN 'text' ELSE 'file' END as type,
@@ -55,16 +55,17 @@ router.get('/', authenticateApiKey, (req, res) => {
            file_size, 
            created_at
     FROM clipboard 
+    WHERE user_id = ? 
   `;
   
-  let countSql = 'SELECT COUNT(*) as count FROM clipboard';
-  const params = [];
-  const countParams = [];
+  let countSql = 'SELECT COUNT(*) as count FROM clipboard WHERE user_id = ?';
+  const params = [req.user.id]; // 添加用户ID参数
+  const countParams = [req.user.id]; // 添加用户ID参数用于计数查询
   
   // 添加搜索和类型筛选条件
   if (search || type) {
-    sql += ' WHERE ';
-    countSql += ' WHERE ';
+    sql += ' AND ';
+    countSql += ' AND ';
     
     let conditions = [];
     
@@ -132,11 +133,11 @@ router.post('/text', authenticateApiKey, (req, res) => {
   
   const db = database.getInstance();
   const sql = `
-    INSERT INTO clipboard (content, created_at)
-    VALUES (?, datetime('now'))
+    INSERT INTO clipboard (content, user_id, created_at)
+    VALUES (?, ?, datetime('now'))
   `;
   
-  db.run(sql, [content], function(err) {
+  db.run(sql, [content, req.user.id], function(err) {
     if (err) {
       console.error('保存文本内容失败:', err);
       return res.status(500).json({ success: false, error: '保存失败' });
@@ -160,9 +161,9 @@ router.post('/text', authenticateApiKey, (req, res) => {
           console.log('向用户发送剪贴板更新:', userRow.id, row);
           io.to(`user_${userRow.id}`).emit('clipboard-update', row);
         } else {
-          // 如果无法获取用户ID，则向所有连接广播（回退方案）
-          console.log('向所有用户发送剪贴板更新:', row);
-          io.emit('clipboard-update', row);
+          // 修复：即使无法获取用户ID，也不应该向所有用户广播
+          // 而是应该记录错误并返回错误响应
+          console.error('无法获取用户信息，无法发送剪贴板更新:', err);
         }
       });
       
@@ -182,11 +183,11 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
   const db = database.getInstance();
   
   const sql = `
-    INSERT INTO clipboard (file_name, file_path, mime_type, file_size, created_at)
-    VALUES (?, ?, ?, ?, datetime('now'))
+    INSERT INTO clipboard (file_name, file_path, mime_type, file_size, user_id, created_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now'))
   `;
   
-  db.run(sql, [originalname, filePath, mimetype, size], function(err) {
+  db.run(sql, [originalname, filePath, mimetype, size, req.user.id], function(err) {
     if (err) {
       console.error('保存文件信息失败:', err);
       // 删除已上传的文件
@@ -212,9 +213,9 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
           console.log('向用户发送剪贴板更新:', userRow.id, row);
           io.to(`user_${userRow.id}`).emit('clipboard-update', row);
         } else {
-          // 如果无法获取用户ID，则向所有连接广播（回退方案）
-          console.log('向所有用户发送剪贴板更新:', row);
-          io.emit('clipboard-update', row);
+          // 修复：即使无法获取用户ID，也不应该向所有用户广播
+          // 而是应该记录错误并返回错误响应
+          console.error('无法获取用户信息，无法发送剪贴板更新:', err);
         }
       });
       
@@ -247,15 +248,15 @@ router.get('/file/:id', (req, res) => {
     
     // API密钥验证通过，继续处理文件请求
     const { id } = req.params;
-    const fileSql = 'SELECT file_path, mime_type, file_name FROM clipboard WHERE id = ? AND file_path IS NOT NULL';
-    db.get(fileSql, [id], (err, row) => {
+    const fileSql = 'SELECT file_path, mime_type, file_name FROM clipboard WHERE id = ? AND file_path IS NOT NULL AND user_id = ?';
+    db.get(fileSql, [id, user.id], (err, row) => {
       if (err) {
         console.error('查询文件信息失败:', err);
         return res.status(500).json({ success: false, error: '查询失败' });
       }
       
       if (!row) {
-        return res.status(404).json({ success: false, error: '文件不存在' });
+        return res.status(404).json({ success: false, error: '文件不存在或无权限访问' });
       }
       
       // 检查文件是否存在
@@ -284,16 +285,16 @@ router.delete('/:id', authenticateApiKey, (req, res) => {
   const { id } = req.params;
   const db = database.getInstance();
   
-  // 先查询项目信息
-  const selectSql = 'SELECT file_path FROM clipboard WHERE id = ?';
-  db.get(selectSql, [id], (err, row) => {
+  // 先查询项目信息，确保是当前用户的数据
+  const selectSql = 'SELECT file_path FROM clipboard WHERE id = ? AND user_id = ?';
+  db.get(selectSql, [id, req.user.id], (err, row) => {
     if (err) {
       console.error('查询项目信息失败:', err);
       return res.status(500).json({ success: false, error: '查询失败' });
     }
     
     if (!row) {
-      return res.status(404).json({ success: false, error: '项目不存在' });
+      return res.status(404).json({ success: false, error: '项目不存在或无权限访问' });
     }
     
     // 如果是文件，删除文件
@@ -307,16 +308,16 @@ router.delete('/:id', authenticateApiKey, (req, res) => {
       }
     }
     
-    // 从数据库删除记录
-    const deleteSql = 'DELETE FROM clipboard WHERE id = ?';
-    db.run(deleteSql, [id], function(err) {
+    // 从数据库删除记录，确保只删除当前用户的数据
+    const deleteSql = 'DELETE FROM clipboard WHERE id = ? AND user_id = ?';
+    db.run(deleteSql, [id, req.user.id], function(err) {
       if (err) {
         console.error('删除记录失败:', err);
         return res.status(500).json({ success: false, error: '删除失败' });
       }
       
       if (this.changes === 0) {
-        return res.status(404).json({ success: false, error: '项目不存在' });
+        return res.status(404).json({ success: false, error: '项目不存在或无权限访问' });
       }
       
       res.json({ success: true, message: '删除成功' });

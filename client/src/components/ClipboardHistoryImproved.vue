@@ -113,6 +113,16 @@
               </div>
             </div>
           </div>
+          
+          <div class="item-footer">
+            <el-button 
+              type="danger" 
+              size="small"
+              @click="handleDeleteItem(item.id)"
+            >
+              删除
+            </el-button>
+          </div>
         </div>
         
         <div v-if="displayData.length === 0 && !loading" class="no-data">
@@ -483,6 +493,19 @@ export default {
       this.$emit('delete-item', id);
     },
 
+    // 处理移动端删除项目
+    handleDeleteItem(id) {
+      this.$confirm('确认删除此项目?', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        this.deleteItem(id);
+      }).catch(() => {
+        // 用户取消删除
+      });
+    },
+
     // 判断是否为图片
     isImage(mimeType) {
       return mimeType && mimeType.startsWith('image/');
@@ -554,7 +577,15 @@ export default {
           this.previewImage(row);
           break;
         case 'delete':
-          this.deleteItem(row.id);
+          this.$confirm('确认删除此项目?', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }).then(() => {
+            this.deleteItem(row.id);
+          }).catch(() => {
+            // 用户取消删除
+          });
           break;
       }
     },
