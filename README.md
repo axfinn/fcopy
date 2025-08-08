@@ -5,37 +5,40 @@
 ![GitHub stars](https://img.shields.io/github/stars/axfinn/fcopy.svg?style=social&label=Stars)
 ![GitHub forks](https://img.shields.io/github/forks/axfinn/fcopy.svg?style=social&label=Fork)
 
-## 功能特点
+## 功能特性
 
-- 实时同步文本和文件
-- 支持多设备访问
-- 基于 API 密钥的身份验证
-- 自动清理过期内容
-- WebSocket 实时推送
-- 多用户支持和数据隔离
-- 可配置的清理时长
-- 支持截图直接粘贴上传
-- 完全响应式设计，支持移动端设备
-- GitHub项目信息展示，方便用户了解和部署
-
-## 在线演示
-
-您可以通过以下链接访问在线演示站点:
-
-- 网站地址: [https://c.jaxiu.cn](https://c.jaxiu.cn)
-- 访问口令: `test`
-
-注意: 演示站点的数据可能会定期清理，请勿存储重要信息。
+- 📋 文本和文件剪贴板同步
+- 🔐 安全的API密钥认证机制
+- 🖼️ 图片预览和文件下载
+- 📱 响应式设计，支持移动端使用
+- 🌐 Socket.IO实时同步
+- 📊 访问统计和监控面板
+- 👤 用户管理和数据隔离
+- 🐳 Docker容器化部署支持
 
 ## 最新版本
 
-当前最新版本: v1.2.13
+当前最新版本: v1.2.14
 
 ## 快速开始
 
-### 使用 Docker Compose (推荐)
+### 使用 Docker (推荐)
 
 ```bash
+# 拉取最新版本镜像
+docker pull axiu/fcopy:latest
+
+# 运行容器
+docker run -d \
+  --name fcopy \
+  -p 2001:2001 \
+  -v /path/to/your/data:/app/uploads \
+  axiu/fcopy:latest
+```
+
+### 使用 Docker Compose (推荐)
+
+```
 # 克隆项目
 git clone https://github.com/axfinn/fcopy.git
 cd fcopy
@@ -48,7 +51,7 @@ docker-compose up -d
 
 ### 使用预构建的 Docker 镜像 (推荐用于快速部署)
 
-```bash
+```
 # 拉取指定版本镜像
 docker pull axiu/fcopy:1.2.12
 
@@ -64,7 +67,7 @@ docker run -d \
 
 ### 使用 Docker Compose 部署指定版本
 
-```yaml
+```
 version: '3.8'
 services:
   fcopy:
