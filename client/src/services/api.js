@@ -144,6 +144,26 @@ class ClipboardApi {
       method: 'DELETE'
     });
   }
+
+  // 获取访问日志 (仅管理员)
+  getAccessLogs(params = {}) {
+    // 构建查询参数
+    const searchParams = new URLSearchParams();
+    
+    // 添加分页参数
+    if (params.page !== undefined) {
+      searchParams.append('page', params.page);
+    }
+    
+    if (params.size !== undefined) {
+      searchParams.append('size', params.size);
+    }
+    
+    const queryString = searchParams.toString();
+    const url = queryString ? `/access-logs?${queryString}` : '/access-logs';
+    
+    return this.request(url);
+  }
 }
 
 export default new ClipboardApi();

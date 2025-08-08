@@ -2,7 +2,8 @@ const database = require('../services/database.js');
 
 // API 密钥鉴权中间件
 const authenticateApiKey = (req, res, next) => {
-  const apiKey = req.headers['x-api-key'];
+  // 尝试从请求头或查询参数获取API密钥
+  const apiKey = req.headers['x-api-key'] || req.query.apiKey;
   
   if (!apiKey) {
     return res.status(401).json({ error: '访问被拒绝，缺少API密钥' });
