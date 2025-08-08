@@ -1,6 +1,6 @@
 {
   "name": "clipboard-sync",
-  "version": "1.2.12",
+  "version": "1.2.13",
   "description": "跨平台剪贴板同步工具",
   "main": "index.js",
   "scripts": {
