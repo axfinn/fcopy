@@ -160,7 +160,7 @@ class ClipboardApi {
     }
     
     const queryString = searchParams.toString();
-    const url = queryString ? `/access-logs?${queryString}` : '/access-logs';
+    const url = queryString ? `/logs/access?${queryString}` : '/logs/access';
     
     return this.request(url);
   }
