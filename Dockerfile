@@ -8,19 +8,19 @@ WORKDIR /app
 COPY package*.json ./
 
 # 安装所有依赖（包括开发依赖）
-RUN npm ci
+RUN npm install
 
 # 复制应用代码
 COPY . .
 
 # 安装额外的依赖
-RUN npm install dotenv html-webpack-plugin chart.js
+RUN npm install dotenv html-webpack-plugin chart.js vue-style-loader
 
 # 创建上传目录
 RUN mkdir -p uploads
 
 # 构建前端代码
-RUN npm run build
+RUN npx webpack --config client/webpack.config.js
 
 # 确保dist目录存在
 RUN mkdir -p dist
