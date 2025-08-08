@@ -5,13 +5,13 @@
 从 Docker Hub 拉取最新版本的 fcopy 镜像：
 
 ```bash
-docker pull axfinn/fcopy:latest
+docker pull axiu/fcopy:latest
 ```
 
 或者拉取特定版本：
 
 ```bash
-docker pull axfinn/fcopy:1.2.7
+docker pull axiu/fcopy:1.2.10
 ```
 
 ## 快速启动
@@ -24,7 +24,7 @@ docker run -d \
   -p 2001:3000 \
   -v /path/to/data:/app/uploads \
   -e CLIPBOARD_API_KEY=your_secret_api_key \
-  axfinn/fcopy:latest
+  axiu/fcopy:latest
 ```
 
 ## 环境变量配置
@@ -44,7 +44,7 @@ docker run -d \
   -p 2001:3000 \
   -v $(pwd)/data:/app/uploads \
   -e CLIPBOARD_API_KEY=your_secret_api_key \
-  axfinn/fcopy:latest
+  axiu/fcopy:latest
 ```
 
 ## 使用 Docker Compose（推荐）
@@ -56,7 +56,7 @@ version: '3.8'
 
 services:
   fcopy:
-    image: axfinn/fcopy:latest
+    image: axiu/fcopy:latest
     container_name: fcopy
     ports:
       - "2001:3000"
@@ -94,10 +94,10 @@ docker logs -f fcopy
 更新到最新版本：
 
 ```bash
-docker pull axfinn/fcopy:latest
+docker pull axiu/fcopy:latest
 docker stop fcopy
 docker rm fcopy
-docker run -d --name fcopy -p 2001:3000 -v ./data:/app/uploads -e CLIPBOARD_API_KEY=your_secret_api_key axfinn/fcopy:latest
+docker run -d --name fcopy -p 2001:3000 -v ./data:/app/uploads -e CLIPBOARD_API_KEY=your_secret_api_key axiu/fcopy:latest
 ```
 
 或者使用 Docker Compose：

@@ -29,7 +29,7 @@
 
 ## 最新版本
 
-当前最新版本: v1.2.9
+当前最新版本: v1.2.10
 
 ## 快速开始
 
@@ -42,6 +42,23 @@ cd fcopy
 
 # 启动服务
 docker-compose up -d
+
+# 访问应用: http://localhost:2001
+```
+
+### 使用预构建的 Docker 镜像 (推荐用于快速部署)
+
+```bash
+# 拉取最新镜像
+docker pull axiu/fcopy:latest
+
+# 启动容器
+docker run -d \
+  --name fcopy \
+  -p 2001:3000 \
+  -v $(pwd)/data:/app/uploads \
+  -e CLIPBOARD_API_KEY=your_secret_api_key \
+  axiu/fcopy:latest
 
 # 访问应用: http://localhost:2001
 ```
