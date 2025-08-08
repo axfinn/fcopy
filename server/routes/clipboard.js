@@ -224,37 +224,57 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
 });
 
 // 获取文件
-router.get('/file/:id', authenticateApiKey, (req, res) => {
-  const { id } = req.params;
+router.get('/file/:id', (req, res) => {
+  // 尝试从请求头或查询参数获取API密钥
+  const apiKey = req.headers['x-api-key'] || req.query.apiKey;
+  
+  if (!apiKey) {
+    return res.status(401).json({ success: false, error: '访问被拒绝，缺少API密钥' });
+  }
+  
   const db = database.getInstance();
   
-  const sql = 'SELECT file_path, mime_type, file_name FROM clipboard WHERE id = ? AND file_path IS NOT NULL';
-  db.get(sql, [id], (err, row) => {
+  // 验证API密钥并获取用户信息
+  const userSql = 'SELECT id, username, is_admin FROM users WHERE api_key = ?';
+  db.get(userSql, [apiKey], (err, user) => {
     if (err) {
-      console.error('查询文件信息失败:', err);
-      return res.status(500).json({ success: false, error: '查询失败' });
+      return res.status(500).json({ success: false, error: '服务器内部错误' });
     }
     
-    if (!row) {
-      return res.status(404).json({ success: false, error: '文件不存在' });
+    if (!user) {
+      return res.status(401).json({ success: false, error: '访问被拒绝，API 密钥无效' });
     }
     
-    // 检查文件是否存在
-    if (!fs.existsSync(row.file_path)) {
-      return res.status(404).json({ success: false, error: '文件不存在' });
-    }
-    
-    // 设置响应头
-    res.setHeader('Content-Type', row.mime_type);
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name)}"`);
-    
-    // 发送文件
-    const fileStream = fs.createReadStream(row.file_path);
-    fileStream.pipe(res);
-    
-    fileStream.on('error', (err) => {
-      console.error('读取文件失败:', err);
-      res.status(500).json({ success: false, error: '读取文件失败' });
+    // API密钥验证通过，继续处理文件请求
+    const { id } = req.params;
+    const fileSql = 'SELECT file_path, mime_type, file_name FROM clipboard WHERE id = ? AND file_path IS NOT NULL';
+    db.get(fileSql, [id], (err, row) => {
+      if (err) {
+        console.error('查询文件信息失败:', err);
+        return res.status(500).json({ success: false, error: '查询失败' });
+      }
+      
+      if (!row) {
+        return res.status(404).json({ success: false, error: '文件不存在' });
+      }
+      
+      // 检查文件是否存在
+      if (!fs.existsSync(row.file_path)) {
+        return res.status(404).json({ success: false, error: '文件不存在' });
+      }
+      
+      // 设置响应头
+      res.setHeader('Content-Type', row.mime_type);
+      res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name)}"`);
+      
+      // 发送文件
+      const fileStream = fs.createReadStream(row.file_path);
+      fileStream.pipe(res);
+      
+      fileStream.on('error', (err) => {
+        console.error('读取文件失败:', err);
+        res.status(500).json({ success: false, error: '读取文件失败' });
+      });
     });
   });
 });

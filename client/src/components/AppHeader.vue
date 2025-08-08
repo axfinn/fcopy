@@ -151,8 +151,9 @@ export default {
 }
 
 .username {
-  color: white;
+  color: #333;
   font-weight: 500;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
 }
 
 .logout-button {

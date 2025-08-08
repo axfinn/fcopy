@@ -152,12 +152,12 @@
               </el-button>
             </div>
             <div v-else-if="scope.row && scope.row.type === 'file'" class="file-preview">
-              <div v-if="isImage(scope.row.mime_type)" class="image-preview">
+              <div v-if="isImage(scope.row.mime_type)" class="image-preview" @click="previewImage(scope.row)">
                 <img 
-                  :src="`/api/clipboard/file/${scope.row.id}`" 
+                  :src="`/api/clipboard/file/${scope.row.id}?apiKey=${apiKey}`" 
                   :alt="scope.row.file_name"
                   @error="handleImageError"
-                  style="max-height: 100px; max-width: 150px; border-radius: 4px;"
+                  style="max-height: 100px; max-width: 150px; border-radius: 4px; cursor: pointer;"
                 />
               </div>
               <div v-else>
@@ -270,6 +270,28 @@
         </el-pagination>
       </div>
     </div>
+    
+    <!-- 图片预览对话框 -->
+    <el-dialog
+      v-model="imagePreviewVisible"
+      title="图片预览"
+      width="80%"
+      class="image-preview-dialog"
+      :before-close="handleImagePreviewClose"
+    >
+      <div class="image-preview-container">
+        <img 
+          :src="imagePreviewUrl" 
+          :alt="previewFile?.file_name"
+          class="image-preview-large"
+        />
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="imagePreviewVisible = false">关闭</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -304,7 +326,11 @@ export default {
         pageSize: 10,
         total: 0
       },
-      isMobile: false // 添加移动端检测
+      isMobile: false, // 添加移动端检测
+      // 图片预览相关数据
+      imagePreviewVisible: false,
+      imagePreviewUrl: '',
+      previewFile: null
     };
   },
   computed: {
@@ -535,7 +561,16 @@ export default {
 
     // 预览图片
     previewImage(item) {
-      this.$emit('preview-image', item);
+      this.previewFile = item;
+      this.imagePreviewUrl = `/api/clipboard/file/${item.id}?apiKey=${this.apiKey}`;
+      this.imagePreviewVisible = true;
+    },
+    
+    // 关闭图片预览
+    handleImagePreviewClose() {
+      this.imagePreviewVisible = false;
+      this.imagePreviewUrl = '';
+      this.previewFile = null;
     }
   }
 };
@@ -729,6 +764,19 @@ export default {
   justify-content: center;
 }
 
+/* 图片预览样式 */
+.image-preview-container {
+  text-align: center;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.image-preview-large {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
   .card {
@@ -824,6 +872,10 @@ export default {
   
   .el-pagination .el-select .el-input__icon {
     line-height: 24px;
+  }
+  
+  .image-preview-dialog {
+    width: 95% !important;
   }
 }
 </style>
