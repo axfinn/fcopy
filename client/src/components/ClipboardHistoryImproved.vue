@@ -82,7 +82,7 @@
                 <el-button 
                   type="primary" 
                   size="small"
-                  @click="downloadFile(item.id, item.file_name, item.mime_type)"
+                  @click="downloadFile(item.id, item.file_name)"
                 >
                   下载
                 </el-button>
@@ -180,7 +180,7 @@
                   <el-button 
                     type="text" 
                     size="small" 
-                    @click="downloadFile(scope.row.id, scope.row.file_name, scope.row.mime_type)"
+                    @click="downloadFile(scope.row.id, scope.row.file_name)"
                   >
                     下载
                   </el-button>
@@ -468,24 +468,40 @@ export default {
       this.fetchData();
     },
 
-    // 复制到剪贴板
+    // 下载文件
+    async downloadFile(fileId, fileName) {
+      try {
+        // 使用 fetch API 下载文件，将 API 密钥放在请求头中
+        const response = await fetch(`/api/clipboard/file/${fileId}`, {
+          headers: {
+            'X-API-Key': this.apiKey
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`下载失败: ${response.status} ${response.statusText}`);
+        }
+
+        // 创建下载链接并触发下载
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('下载文件时出错:', error);
+        this.$message.error('下载文件失败: ' + error.message);
+      }
+    },
+    
+    // 复制文本到剪贴板
     copyToClipboard(content) {
       this.$emit('copy-to-clipboard', content);
-    },
-
-    // 下载文件
-    downloadFile(id, filename, mimeType) {
-      this.$emit('download-file', id, filename, mimeType);
-    },
-
-    // 预览文本文件
-    previewTextFile(item) {
-      this.$emit('preview-text-file', item);
-    },
-
-    // 预览PDF文件
-    previewPdfFile(item) {
-      this.$emit('preview-pdf-file', item);
     },
 
     // 删除项目
@@ -580,15 +596,39 @@ export default {
       }
     },
 
+
     // 预览图片
-    previewImage(item) {
-      this.previewFile = item;
-      this.imagePreviewUrl = `/api/clipboard/file/${item.id}?apiKey=${this.apiKey}`;
-      this.imagePreviewVisible = true;
+    async previewImage(item) {
+      try {
+        // 使用 fetch API 获取图片，将 API 密钥放在请求头中
+        const response = await fetch(`/api/clipboard/file/${item.id}`, {
+          headers: {
+            'X-API-Key': this.apiKey
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`获取图片失败: ${response.status} ${response.statusText}`);
+        }
+
+        // 创建对象URL用于预览
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        this.previewFile = item;
+        this.imagePreviewUrl = url;
+        this.imagePreviewVisible = true;
+      } catch (error) {
+        console.error('预览图片时出错:', error);
+        this.$message.error('预览图片失败: ' + error.message);
+      }
     },
     
     // 关闭图片预览
     handleImagePreviewClose() {
+      // 清理创建的对象URL
+      if (this.imagePreviewUrl) {
+        window.URL.revokeObjectURL(this.imagePreviewUrl);
+      }
       this.imagePreviewVisible = false;
       this.imagePreviewUrl = '';
       this.previewFile = null;
