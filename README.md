@@ -16,9 +16,15 @@
 - 👤 用户管理和数据隔离
 - 🐳 Docker容器化部署支持
 
-## 最新版本
+## 使用的组件/库/框架
 
-当前最新版本: v1.2.14
+- 后端：[Node.js](https://nodejs.org/) + [Express](https://expressjs.com/) + [Socket.IO](https://socket.io/) + [better-sqlite3](https://github.com/WiseLibs/better-sqlite3)
+- 前端：[Vue 3](https://v3.vuejs.org/) + [Webpack 5](https://webpack.js.org/)
+- 部署：[Docker](https://www.docker.com/) + [Docker Compose](https://docs.docker.com/compose/)
+
+## 当前版本
+
+v1.2.15 (2025-08-09)
 
 ## 快速开始
 
