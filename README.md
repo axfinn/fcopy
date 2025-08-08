@@ -29,7 +29,7 @@
 
 ## 最新版本
 
-当前最新版本: v1.2.11
+当前最新版本: v1.2.12
 
 ## 快速开始
 
@@ -49,18 +49,33 @@ docker-compose up -d
 ### 使用预构建的 Docker 镜像 (推荐用于快速部署)
 
 ```bash
-# 拉取最新镜像
-docker pull axiu/fcopy:latest
+# 拉取指定版本镜像
+docker pull axiu/fcopy:1.2.12
 
 # 启动容器
 docker run -d \
   --name fcopy \
-  -p 2001:3000 \
-  -v $(pwd)/data:/app/uploads \
-  -e CLIPBOARD_API_KEY=your_secret_api_key \
-  axiu/fcopy:latest
+  -p 2001:2001 \
+  -v $(pwd)/data:/app/data \
+  axiu/fcopy:1.2.12
 
 # 访问应用: http://localhost:2001
+```
+
+### 使用 Docker Compose 部署指定版本
+
+```yaml
+version: '3.8'
+services:
+  fcopy:
+    image: axiu/fcopy:1.2.12
+    container_name: fcopy
+    ports:
+      - "2001:2001"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - EXPIRE_HOURS=24
 ```
 
 ### 配置 API 密钥
@@ -78,6 +93,20 @@ CLEANUP_DAYS=7
 系统会自动创建两个默认用户：
 1. 普通用户：用户名 `default`，API密钥为 `CLIPBOARD_API_KEY` 的值（默认为 `default-api-key`）
 2. 管理员用户：用户名 `admin`，API密钥为 `ADMIN_API_KEY` 的值（默认为 `admin_secret_key`）
+
+### 更新内容
+
+### v1.2.12
+
+- 实现完整的用户数据隔离功能，确保不同用户之间数据完全独立
+- 在移动端界面添加删除按钮，提升移动端用户体验
+- 增强安全机制，防止用户访问其他用户的数据
+
+### v1.2.11
+
+- 修正Docker镜像名称一致性问题：统一使用`axiu/fcopy`作为镜像名称
+- 更新GitHub Actions构建流水线配置，确保镜像正确推送至Docker Hub
+- 同步更新README和DOCKER文档中的镜像引用
 
 ### 配置请求频率限制
 
