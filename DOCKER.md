@@ -99,10 +99,3 @@ docker stop fcopy
 docker rm fcopy
 docker run -d --name fcopy -p 2001:3000 -v ./data:/app/uploads -e CLIPBOARD_API_KEY=your_secret_api_key axiu/fcopy:latest
 ```
-
-或者使用 Docker Compose：
-
-```bash
-docker-compose pull
-docker-compose up -d
-```

@@ -178,18 +178,6 @@ chmod +x deploy.sh
 - Stars: ![GitHub stars](https://img.shields.io/github/stars/axfinn/fcopy.svg)
 - Forks: ![GitHub forks](https://img.shields.io/github/forks/axfinn/fcopy.svg)
 
-## 支持作者
-
-如果这个项目对你有帮助，请作者喝杯咖啡吧！
-
-| 微信赞赏 | 支付宝 |
-| :------: | :----: |
-| ![微信](img/wxpay.JPG) | ![支付宝](img/alipay.JPG) |
-
-## 许可证
-
-[MIT](LICENSE)
-
 # 跨平台剪贴板同步工具
 
 一个支持多平台访问的Web项目，可以快速复制粘贴内容并实现跨平台数据同步。
@@ -335,20 +323,12 @@ set CLIPBOARD_API_KEY=your_secret_api_key && npm run dev
 
 ## 支持作者
 
-如果这个项目对您有帮助，欢迎请作者喝杯咖啡！您的支持是我持续改进项目的动力。
+如果这个项目对你有帮助，请作者喝杯咖啡吧！
 
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <h3>微信支付</h3>
-        <img src="img/wxpay.JPG" width="200" alt="微信支付二维码">
-      </td>
-      <td align="center">
-        <h3>支付宝</h3>
-        <img src="img/alipay.JPG" width="200" alt="支付宝二维码">
-      </td>
-    </tr>
-  </table>
-  <p>感谢您的支持！</p>
-</div>
+| 微信赞赏 | 支付宝 |
+| :------: | :----: |
+| ![微信](img/wxpay.JPG) | ![支付宝](img/alipay.JPG) |
+
+## 许可证
+
+[MIT](LICENSE)
