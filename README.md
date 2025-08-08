@@ -29,7 +29,7 @@
 
 ## 最新版本
 
-当前最新版本: v1.2.9
+当前最新版本: v1.2.11
 
 ## 快速开始
 
@@ -42,6 +42,23 @@ cd fcopy
 
 # 启动服务
 docker-compose up -d
+
+# 访问应用: http://localhost:2001
+```
+
+### 使用预构建的 Docker 镜像 (推荐用于快速部署)
+
+```bash
+# 拉取最新镜像
+docker pull axiu/fcopy:latest
+
+# 启动容器
+docker run -d \
+  --name fcopy \
+  -p 2001:3000 \
+  -v $(pwd)/data:/app/uploads \
+  -e CLIPBOARD_API_KEY=your_secret_api_key \
+  axiu/fcopy:latest
 
 # 访问应用: http://localhost:2001
 ```
@@ -160,18 +177,6 @@ chmod +x deploy.sh
 - 项目地址: [https://github.com/axfinn/fcopy.git](https://github.com/axfinn/fcopy.git)
 - Stars: ![GitHub stars](https://img.shields.io/github/stars/axfinn/fcopy.svg)
 - Forks: ![GitHub forks](https://img.shields.io/github/forks/axfinn/fcopy.svg)
-
-## 支持作者
-
-如果这个项目对你有帮助，请作者喝杯咖啡吧！
-
-| 微信赞赏 | 支付宝 |
-| :------: | :----: |
-| ![微信](img/wxpay.JPG) | ![支付宝](img/alipay.JPG) |
-
-## 许可证
-
-[MIT](LICENSE)
 
 # 跨平台剪贴板同步工具
 
@@ -318,20 +323,12 @@ set CLIPBOARD_API_KEY=your_secret_api_key && npm run dev
 
 ## 支持作者
 
-如果这个项目对您有帮助，欢迎请作者喝杯咖啡！您的支持是我持续改进项目的动力。
+如果这个项目对你有帮助，请作者喝杯咖啡吧！
 
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <h3>微信支付</h3>
-        <img src="img/wxpay.JPG" width="200" alt="微信支付二维码">
-      </td>
-      <td align="center">
-        <h3>支付宝</h3>
-        <img src="img/alipay.JPG" width="200" alt="支付宝二维码">
-      </td>
-    </tr>
-  </table>
-  <p>感谢您的支持！</p>
-</div>
+| 微信赞赏 | 支付宝 |
+| :------: | :----: |
+| ![微信](img/wxpay.JPG) | ![支付宝](img/alipay.JPG) |
+
+## 许可证
+
+[MIT](LICENSE)
