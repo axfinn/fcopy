@@ -31,6 +31,31 @@ class ClipboardApi {
     return response.json();
   }
 
+  // 格式化时间为上海时区
+  formatToShanghaiTime(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    // API返回的时间已经是上海时区的ISO格式（包含+08:00后缀）
+    // 直接格式化为中文时间格式，不再指定时区转换
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  }
+
+  // 格式化剪贴板项目数据
+  formatClipboardItem(item) {
+    return {
+      ...item,
+      created_at: this.formatToShanghaiTime(item.created_at)
+    };
+  }
+
   // 用户认证
   authenticate(apiKey) {
     return this.request('/users/auth', {
@@ -40,7 +65,7 @@ class ClipboardApi {
   }
 
   // 获取剪贴板历史记录
-  getClipboardHistory(params = {}) {
+  async getClipboardHistory(params = {}) {
     // 构建查询参数
     const searchParams = new URLSearchParams();
     
@@ -70,7 +95,14 @@ class ClipboardApi {
     const queryString = searchParams.toString();
     const url = queryString ? `/clipboard?${queryString}` : '/clipboard';
     
-    return this.request(url);
+    const response = await this.request(url);
+    
+    // 格式化返回的数据
+    if (response.data && Array.isArray(response.data)) {
+      response.data = response.data.map(item => this.formatClipboardItem(item));
+    }
+    
+    return response;
   }
 
   // 添加文本内容
@@ -111,51 +143,6 @@ class ClipboardApi {
     return this.request(`/users/${userId}`, {
       method: 'DELETE'
     });
-  }
-
-  // 获取访问日志 (仅管理员)
-  getAccessLogs(params = {}) {
-    // 构建查询参数
-    const searchParams = new URLSearchParams();
-    
-    // 添加分页参数
-    if (params.page !== undefined) {
-      searchParams.append('page', params.page);
-    } else {
-      searchParams.append('page', 1); // 默认第一页
-    }
-    
-    if (params.size !== undefined) {
-      searchParams.append('size', params.size);
-    } else {
-      searchParams.append('size', 10); // 默认每页10条
-    }
-    
-    const queryString = searchParams.toString();
-    const url = queryString ? `/logs/access?${queryString}` : '/logs/access';
-    
-    return this.request(url);
-  }
-
-  // 获取GitHub信息
-  getGithubInfo() {
-    return this.request('/github-info');
-  }
-
-  // 下载文件
-  async downloadFile(fileId) {
-    const response = await fetch(`${this.baseUrl}/clipboard/file/${fileId}`, {
-      headers: {
-        'X-API-Key': this.apiKey
-      }
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || '下载失败');
-    }
-    
-    return response;
   }
 }
 

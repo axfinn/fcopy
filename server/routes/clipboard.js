@@ -111,9 +111,32 @@ router.get('/', authenticateApiKey, (req, res) => {
         return res.status(500).json({ success: false, error: '查询失败' });
       }
       
+      // 确保时间格式正确传递给前端
+      const formattedRows = rows.map(row => {
+        // 数据库中存储的时间是UTC时间，我们需要将其转换为上海时区的ISO字符串格式
+        const utcDate = new Date(row.created_at);
+        // 转换为上海时区时间
+        const shanghaiTime = new Date(utcDate.getTime() + 8 * 60 * 60 * 1000);
+        
+        // 格式化为 "YYYY/MM/DD HH:mm:ss" 格式
+        const year = shanghaiTime.getFullYear();
+        const month = String(shanghaiTime.getMonth() + 1).padStart(2, '0');
+        const day = String(shanghaiTime.getDate()).padStart(2, '0');
+        const hours = String(shanghaiTime.getHours()).padStart(2, '0');
+        const minutes = String(shanghaiTime.getMinutes()).padStart(2, '0');
+        const seconds = String(shanghaiTime.getSeconds()).padStart(2, '0');
+        
+        const formattedTime = `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+        
+        return {
+          ...row,
+          created_at: formattedTime
+        };
+      });
+      
       res.json({
         success: true,
-        data: rows,
+        data: formattedRows,
         total: countResult.count,
         page: page,
         size: size
@@ -139,49 +162,60 @@ router.post('/text', authenticateApiKey, (req, res) => {
   
   db.run(sql, [content, req.user.id], function(err) {
     if (err) {
-      console.error('保存文本内容失败:', err);
+      console.error('插入文本内容失败:', err);
       return res.status(500).json({ success: false, error: '保存失败' });
     }
     
-    // 获取插入的记录
-    const selectSql = 'SELECT id, \'text\' as type, content, NULL as file_name, NULL as file_path, NULL as mime_type, NULL as file_size, created_at FROM clipboard WHERE id = ?';
-    db.get(selectSql, [this.lastID], (err, row) => {
-      if (err) {
-        console.error('查询插入的记录失败:', err);
-        return res.status(500).json({ success: false, error: '查询失败' });
-      }
-      
-      // 通过WebSocket向同一用户的所有连接广播更新
-      const io = req.app.get('io');
-      // 获取当前用户ID
-      const userSql = 'SELECT id FROM users WHERE api_key = ?';
-      db.get(userSql, [apiKey], (err, userRow) => {
-        if (!err && userRow) {
-          // 向特定用户的房间发送消息
-          console.log('向用户发送剪贴板更新:', userRow.id, row);
-          io.to(`user_${userRow.id}`).emit('clipboard-update', row);
-        } else {
-          // 修复：即使无法获取用户ID，也不应该向所有用户广播
-          // 而是应该记录错误并返回错误响应
-          console.error('无法获取用户信息，无法发送剪贴板更新:', err);
+    // 通过 Socket.IO 通知所有客户端（需要广播给特定用户）
+    const io = req.app.get('io');
+    if (io) {
+      // 获取新插入的记录
+      db.get('SELECT * FROM clipboard WHERE id = ?', [this.lastID], (err, row) => {
+        if (!err && row) {
+          // 格式化时间
+          const utcDate = new Date(row.created_at);
+          // 转换为上海时区时间
+          const shanghaiTime = new Date(utcDate.getTime() + 8 * 60 * 60 * 1000);
+          
+          // 格式化为 "YYYY/MM/DD HH:mm:ss" 格式
+          const year = shanghaiTime.getFullYear();
+          const month = String(shanghaiTime.getMonth() + 1).padStart(2, '0');
+          const day = String(shanghaiTime.getDate()).padStart(2, '0');
+          const hours = String(shanghaiTime.getHours()).padStart(2, '0');
+          const minutes = String(shanghaiTime.getMinutes()).padStart(2, '0');
+          const seconds = String(shanghaiTime.getSeconds()).padStart(2, '0');
+          
+          const formattedTime = `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+          
+          const formattedRow = {
+            ...row,
+            created_at: formattedTime,
+            type: 'text'
+          };
+          
+          // 只向对应的用户发送更新
+          io.to(`user_${req.user.id}`).emit('clipboard-update', formattedRow);
         }
       });
-      
-      res.json({ success: true, id: this.lastID, data: row });
+    }
+    
+    res.json({ 
+      success: true, 
+      id: this.lastID, 
+      content,
+      message: '内容保存成功'
     });
   });
 });
 
-// 上传文件
+// 文件上传
 router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, error: '没有上传文件' });
   }
   
   const { originalname, mimetype, size, path: filePath } = req.file;
-  const apiKey = req.headers['x-api-key'];
   const db = database.getInstance();
-  
   const sql = `
     INSERT INTO clipboard (file_name, file_path, mime_type, file_size, user_id, created_at)
     VALUES (?, ?, ?, ?, ?, datetime('now'))
@@ -195,87 +229,47 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
       return res.status(500).json({ success: false, error: '保存失败' });
     }
     
-    // 获取插入的记录
-    const selectSql = 'SELECT id, \'file\' as type, NULL as content, file_name, file_path, mime_type, file_size, created_at FROM clipboard WHERE id = ?';
-    db.get(selectSql, [this.lastID], (err, row) => {
-      if (err) {
-        console.error('查询插入的记录失败:', err);
-        return res.status(500).json({ success: false, error: '查询失败' });
-      }
-      
-      // 通过WebSocket向同一用户的所有连接广播更新
-      const io = req.app.get('io');
-      // 获取当前用户ID
-      const userSql = 'SELECT id FROM users WHERE api_key = ?';
-      db.get(userSql, [apiKey], (err, userRow) => {
-        if (!err && userRow) {
-          // 向特定用户的房间发送消息
-          console.log('向用户发送剪贴板更新:', userRow.id, row);
-          io.to(`user_${userRow.id}`).emit('clipboard-update', row);
-        } else {
-          // 修复：即使无法获取用户ID，也不应该向所有用户广播
-          // 而是应该记录错误并返回错误响应
-          console.error('无法获取用户信息，无法发送剪贴板更新:', err);
+    // 通过 Socket.IO 通知所有客户端（需要广播给特定用户）
+    const io = req.app.get('io');
+    if (io) {
+      // 获取新插入的记录
+      db.get('SELECT * FROM clipboard WHERE id = ?', [this.lastID], (err, row) => {
+        if (!err && row) {
+          // 格式化时间
+          const utcDate = new Date(row.created_at);
+          // 转换为上海时区时间
+          const shanghaiTime = new Date(utcDate.getTime() + 8 * 60 * 60 * 1000);
+          
+          // 格式化为 "YYYY/MM/DD HH:mm:ss" 格式
+          const year = shanghaiTime.getFullYear();
+          const month = String(shanghaiTime.getMonth() + 1).padStart(2, '0');
+          const day = String(shanghaiTime.getDate()).padStart(2, '0');
+          const hours = String(shanghaiTime.getHours()).padStart(2, '0');
+          const minutes = String(shanghaiTime.getMinutes()).padStart(2, '0');
+          const seconds = String(shanghaiTime.getSeconds()).padStart(2, '0');
+          
+          const formattedTime = `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+          
+          const formattedRow = {
+            ...row,
+            created_at: formattedTime,
+            type: 'file'
+          };
+          
+          // 只向对应的用户发送更新
+          io.to(`user_${req.user.id}`).emit('clipboard-update', formattedRow);
         }
       });
-      
-      res.json({ success: true, id: this.lastID, data: row });
-    });
-  });
-});
-
-// 获取文件
-router.get('/file/:id', (req, res) => {
-  // 尝试从请求头或查询参数获取API密钥
-  const apiKey = req.headers['x-api-key'] || req.query.apiKey;
-  
-  if (!apiKey) {
-    return res.status(401).json({ success: false, error: '访问被拒绝，缺少API密钥' });
-  }
-  
-  const db = database.getInstance();
-  
-  // 验证API密钥并获取用户信息
-  const userSql = 'SELECT id, username, is_admin FROM users WHERE api_key = ?';
-  db.get(userSql, [apiKey], (err, user) => {
-    if (err) {
-      return res.status(500).json({ success: false, error: '服务器内部错误' });
     }
     
-    if (!user) {
-      return res.status(401).json({ success: false, error: '访问被拒绝，API 密钥无效' });
-    }
-    
-    // API密钥验证通过，继续处理文件请求
-    const { id } = req.params;
-    const fileSql = 'SELECT file_path, mime_type, file_name FROM clipboard WHERE id = ? AND file_path IS NOT NULL AND user_id = ?';
-    db.get(fileSql, [id, user.id], (err, row) => {
-      if (err) {
-        console.error('查询文件信息失败:', err);
-        return res.status(500).json({ success: false, error: '查询失败' });
-      }
-      
-      if (!row) {
-        return res.status(404).json({ success: false, error: '文件不存在或无权限访问' });
-      }
-      
-      // 检查文件是否存在
-      if (!fs.existsSync(row.file_path)) {
-        return res.status(404).json({ success: false, error: '文件不存在' });
-      }
-      
-      // 设置响应头
-      res.setHeader('Content-Type', row.mime_type);
-      res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name)}"`);
-      
-      // 发送文件
-      const fileStream = fs.createReadStream(row.file_path);
-      fileStream.pipe(res);
-      
-      fileStream.on('error', (err) => {
-        console.error('读取文件失败:', err);
-        res.status(500).json({ success: false, error: '读取文件失败' });
-      });
+    res.json({ 
+      success: true, 
+      id: this.lastID,
+      file_name: originalname,
+      file_path: filePath,
+      mime_type: mimetype,
+      file_size: size,
+      message: '文件上传成功'
     });
   });
 });
@@ -285,43 +279,74 @@ router.delete('/:id', authenticateApiKey, (req, res) => {
   const { id } = req.params;
   const db = database.getInstance();
   
-  // 先查询项目信息，确保是当前用户的数据
-  const selectSql = 'SELECT file_path FROM clipboard WHERE id = ? AND user_id = ?';
-  db.get(selectSql, [id, req.user.id], (err, row) => {
+  // 先查询文件路径以删除文件
+  db.get('SELECT file_path FROM clipboard WHERE id = ? AND user_id = ?', [id, req.user.id], (err, row) => {
     if (err) {
-      console.error('查询项目信息失败:', err);
-      return res.status(500).json({ success: false, error: '查询失败' });
+      console.error('查询项目失败:', err);
+      return res.status(500).json({ success: false, error: '删除失败' });
     }
     
     if (!row) {
-      return res.status(404).json({ success: false, error: '项目不存在或无权限访问' });
+      return res.status(404).json({ success: false, error: '项目不存在' });
     }
     
     // 如果是文件，删除文件
     if (row.file_path) {
-      try {
-        if (fs.existsSync(row.file_path)) {
-          fs.unlinkSync(row.file_path);
+      fs.unlink(row.file_path, (err) => {
+        if (err) {
+          console.error('删除文件失败:', err);
         }
-      } catch (err) {
-        console.error('删除文件失败:', err);
-      }
+      });
     }
     
-    // 从数据库删除记录，确保只删除当前用户的数据
-    const deleteSql = 'DELETE FROM clipboard WHERE id = ? AND user_id = ?';
-    db.run(deleteSql, [id, req.user.id], function(err) {
+    // 从数据库中删除记录
+    const sql = 'DELETE FROM clipboard WHERE id = ? AND user_id = ?';
+    db.run(sql, [id, req.user.id], function(err) {
       if (err) {
         console.error('删除记录失败:', err);
         return res.status(500).json({ success: false, error: '删除失败' });
       }
       
       if (this.changes === 0) {
-        return res.status(404).json({ success: false, error: '项目不存在或无权限访问' });
+        return res.status(404).json({ success: false, error: '项目不存在' });
+      }
+      
+      // 通过 Socket.IO 通知客户端删除
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`user_${req.user.id}`).emit('clipboard-delete', { id: parseInt(id) });
       }
       
       res.json({ success: true, message: '删除成功' });
     });
+  });
+});
+
+// 根据ID获取文件
+router.get('/file/:id', authenticateApiKey, (req, res) => {
+  const { id } = req.params;
+  const db = database.getInstance();
+  
+  const sql = 'SELECT file_path, mime_type FROM clipboard WHERE id = ? AND user_id = ?';
+  db.get(sql, [id, req.user.id], (err, row) => {
+    if (err) {
+      console.error('查询文件失败:', err);
+      return res.status(500).json({ success: false, error: '获取文件失败' });
+    }
+    
+    if (!row) {
+      return res.status(404).json({ success: false, error: '文件不存在' });
+    }
+    
+    // 检查文件是否存在
+    if (!fs.existsSync(row.file_path)) {
+      return res.status(404).json({ success: false, error: '文件不存在' });
+    }
+    
+    // 设置响应头
+    res.setHeader('Content-Type', row.mime_type);
+    // 发送文件
+    res.sendFile(path.resolve(row.file_path));
   });
 });
 

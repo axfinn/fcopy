@@ -264,22 +264,12 @@ export default {
     },
 
     /**
-     * 格式化时间为上海时区
-     * @param {string} dateString - ISO格式的时间字符串
-     * @returns {string} 格式化后的时间字符串（YYYY-MM-DD HH:mm:ss）
+     * 格式化时间为上海时区（API层已格式化）
+     * @param {string} dateString - 已格式化的时间字符串
+     * @returns {string} 直接返回格式化后的时间字符串
      */
     formatToShanghaiTime(dateString) {
-      const date = new Date(dateString);
-      return new Intl.DateTimeFormat('zh-CN', {
-        timeZone: 'Asia/Shanghai',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      }).format(date);
+      return dateString || '';
     },
     
     isTextFile(mimeType) {

@@ -1,3 +1,5 @@
+process.env.TZ = 'Asia/Shanghai';
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -48,7 +50,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
-    timestamp: new Date().toISOString(),
+    timestamp: new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) + ' (Asia/Shanghai)',
     uptime: process.uptime()
   });
 });
@@ -157,7 +159,7 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log(`用户 ${socket.user.username} 已连接，Socket ID: ${socket.id}`);
   
-  // 添加连接时间
+  // 添加连接时间（使用上海时区）
   socket.connectedAt = new Date();
   
   // 将用户加入其专属房间

@@ -550,18 +550,8 @@ export default {
      * 格式化时间为上海时区
      */
     formatToShanghaiTime(dateString) {
-      if (!dateString) return '';
-      const date = new Date(dateString);
-      return new Intl.DateTimeFormat('zh-CN', {
-        timeZone: 'Asia/Shanghai',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      }).format(date);
+      // 时间已经在API层格式化，直接返回
+      return dateString || '';
     },
 
     // 下拉菜单命令处理

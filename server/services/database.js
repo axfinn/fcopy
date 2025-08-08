@@ -3,6 +3,9 @@ const path = require('path');
 const fs = require('fs');
 const config = require('../config/app.js');
 
+// 设置SQLite使用上海时区
+process.env.TZ = 'Asia/Shanghai';
+
 class DatabaseService {
   constructor() {
     this.db = null;
