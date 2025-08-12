@@ -164,6 +164,49 @@ class ClipboardApi {
     
     return this.request(url);
   }
+
+  // 下载文件（返回 fetch Response，调用方自行处理 blob）
+  async downloadFile(id) {
+    const url = `${this.baseUrl}/clipboard/file/${id}?download=1`;
+    const response = await fetch(url, {
+      headers: { 'X-API-Key': this.apiKey }
+    });
+    if (!response.ok) {
+      throw new Error(`下载失败: ${response.status}`);
+    }
+    return response; // 让调用方选择 blob/text
+  }
 }
 
 export default new ClipboardApi();
+
+export async function downloadFile(id, apiKey) {
+  const url = `/api/clipboard/file/${id}?download=1`;
+  try {
+    const resp = await fetch(url, { headers: { 'X-API-Key': apiKey }});
+    if (!resp.ok) throw new Error('status ' + resp.status);
+    const disposition = resp.headers.get('Content-Disposition') || '';
+    let suggested = 'download';
+    const m = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+    if (m) suggested = decodeURIComponent(m[1] || m[2] || suggested);
+    const blob = await resp.blob();
+    if (blob.size === 0) throw new Error('empty');
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = suggested;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(objectUrl); a.remove(); }, 1500);
+    return true;
+  } catch(e) {
+    console.warn('[api][downloadFile] blob 方式失败, fallback 直接导航', e);
+    const a = document.createElement('a');
+    a.href = `${url}&ts=${Date.now()}`;
+    a.setAttribute('download','');
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=> a.remove(), 1000);
+    return false;
+  }
+}

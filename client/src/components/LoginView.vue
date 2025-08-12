@@ -1,5 +1,8 @@
 <template>
   <div class="login-background">
+    <div class="particles-overlay">
+      <div v-for="n in 18" :key="n" class="particle" :class="{ alt: n % 3 === 0 }" :style="particleStyle(n)"></div>
+    </div>
     <div class="background-container">
       <div 
         class="background-slide"
@@ -107,6 +110,13 @@ export default {
     // 切换背景图片
     changeBackground() {
       this.currentBackgroundIndex = (this.currentBackgroundIndex + 1) % this.backgrounds.length;
+    },
+    particleStyle(n){
+      const delay = (n * 1.37) + 's';
+      const left = (n * 53 % 100) + '%';
+      const bottom = (n * 29 % 100) + '%';
+      const size = 4 + (n * 7 % 10);
+      return { left, bottom, width: size+'px', height: size+'px', animationDelay: delay };
     }
   },
   mounted() {

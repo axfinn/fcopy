@@ -72,6 +72,8 @@ class DatabaseService {
       file_size INTEGER,
       mime_type TEXT,
       user_id INTEGER DEFAULT 1,
+      ip_address TEXT,
+      user_agent TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`, (err) => {
       if (err) {
@@ -85,6 +87,24 @@ class DatabaseService {
             console.error('添加user_id列失败:', err.message);
           } else if (!err) {
             console.log('成功添加user_id列到clipboard表');
+          }
+        });
+
+        // 兼容升级：添加ip_address列
+        this.db.run(`ALTER TABLE clipboard ADD COLUMN ip_address TEXT`, (err) => {
+          if (err && !err.message.includes('duplicate column name')) {
+            console.error('添加ip_address列失败:', err.message);
+          } else if (!err) {
+            console.log('成功添加ip_address列到clipboard表');
+          }
+        });
+
+        // 兼容升级：添加user_agent列
+        this.db.run(`ALTER TABLE clipboard ADD COLUMN user_agent TEXT`, (err) => {
+          if (err && !err.message.includes('duplicate column name')) {
+            console.error('添加user_agent列失败:', err.message);
+          } else if (!err) {
+            console.log('成功添加user_agent列到clipboard表');
           }
         });
       }

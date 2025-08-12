@@ -169,7 +169,8 @@ export default defineComponent({
       textPreviewContent: '',
       textPreviewDialogVisible: false,
       pdfPreviewDialogVisible: false,
-      previewFile: null
+  previewFile: null,
+  darkMode: false
     };
   },
   // 添加计算属性，确保模板中可以访问store
@@ -192,6 +193,20 @@ export default defineComponent({
     
     // 初始化背景
     store.mutations.initializeBackground();
+
+    // 初始化主题（读取本地存储 / 系统偏好）
+    const mode = localStorage.getItem('clipboard_theme_mode') || 'auto';
+    if(mode === 'dark') {
+      document.documentElement.classList.add('theme-dark');
+      this.darkMode = true;
+    } else if(mode === 'light') {
+      document.documentElement.classList.remove('theme-dark');
+      this.darkMode = false;
+    } else { // auto
+      const preferDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.classList.toggle('theme-dark', preferDark);
+      this.darkMode = preferDark;
+    }
     
     // 添加粘贴事件监听器
     document.addEventListener('paste', this.handlePaste);
@@ -222,6 +237,15 @@ export default defineComponent({
           }
         } catch (error) {
           console.error('处理WebSocket消息时出错:', error);
+        }
+      });
+      // 监听剪贴板删除事件
+      socket.on('clipboard-delete', (data) => {
+        try {
+          if (!data || typeof data.id === 'undefined') return;
+          store.mutations.REMOVE_CLIPBOARD_ITEM(data.id);
+        } catch (e) {
+          console.error('处理删除事件出错:', e);
         }
       });
       
@@ -529,13 +553,15 @@ export default defineComponent({
             'X-API-Key': store.state.apiKey
           }
         });
-        if (response.ok) {
-          this.textPreviewContent = await response.text();
-          this.textPreviewDialogVisible = true;
-          this.previewFile = file;
-        } else {
-          throw new Error('获取文件内容失败');
+        if (!response.ok) {
+          let errMsg = '获取文件内容失败';
+          try { const j = await response.json(); if (j && j.error) errMsg = j.error; } catch(_) {}
+          throw new Error(errMsg + ` (status ${response.status})`);
         }
+        const text = await response.text();
+        this.textPreviewContent = text;
+        this.textPreviewDialogVisible = true;
+        this.previewFile = file;
       } catch (error) {
         console.error('预览文件失败:', error);
         if (window.$message) {
@@ -568,8 +594,8 @@ export default defineComponent({
       try {
         const response = await api.deleteClipboardItem(id);
         if (response.success) {
-          // 更新剪贴板项目列表
-          await this.updateClipboardItems();
+          // 立即本地移除（WebSocket 也会推送，双重保障）
+          store.mutations.REMOVE_CLIPBOARD_ITEM(id);
           if (window.$message) {
             window.$message.success('删除成功');
           }

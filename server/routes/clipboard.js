@@ -31,6 +31,29 @@ const upload = multer({
   }
 });
 
+// 处理可能的拉丁1被误解码的文件名 -> 转 UTF-8
+function normalizeUploadedFilename(name) {
+  if (!name) return name;
+  // 如果包含看似 mojibake 的序列（出现多次 0xC3 模式转义后的字符），尝试 latin1->utf8 转换
+  const hasMojibake = /[\xC3\xA7]/.test(name) && /%/g.test(encodeURIComponent(name)) === false; // 粗略判断
+  try {
+    const converted = Buffer.from(name, 'latin1').toString('utf8');
+    // 经验性：如果转换后出现更多 CJK 字符则采用
+    const cjkCountOrig = (name.match(/[\u4e00-\u9fff]/g) || []).length;
+    const cjkCountConv = (converted.match(/[\u4e00-\u9fff]/g) || []).length;
+    if (cjkCountConv > cjkCountOrig) return converted;
+    if (hasMojibake) return converted;
+  } catch (_) {}
+  return name;
+}
+
+// 对 Content-Disposition 进行 UTF-8 安全编码
+function buildContentDisposition(filename) {
+  const fallback = filename.replace(/[\r\n"]/g, '_');
+  const encoded = encodeURIComponent(fallback);
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encoded}`;
+}
+
 // 获取剪贴板历史记录（支持分页、搜索和类型筛选）
 router.get('/', authenticateApiKey, (req, res) => {
   const db = database.getInstance();
@@ -53,6 +76,8 @@ router.get('/', authenticateApiKey, (req, res) => {
            file_path, 
            mime_type, 
            file_size, 
+           ip_address,
+           user_agent,
            created_at
     FROM clipboard 
     WHERE user_id = ? 
@@ -155,12 +180,14 @@ router.post('/text', authenticateApiKey, (req, res) => {
   }
   
   const db = database.getInstance();
+  const ipAddress = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.headers['x-real-ip'] || req.connection?.remoteAddress || req.ip;
+  const userAgent = req.get('User-Agent') || '';
   const sql = `
-    INSERT INTO clipboard (content, user_id, created_at)
-    VALUES (?, ?, datetime('now'))
+    INSERT INTO clipboard (content, user_id, ip_address, user_agent, created_at)
+    VALUES (?, ?, ?, ?, datetime('now'))
   `;
   
-  db.run(sql, [content, req.user.id], function(err) {
+  db.run(sql, [content, req.user.id, ipAddress, userAgent], function(err) {
     if (err) {
       console.error('插入文本内容失败:', err);
       return res.status(500).json({ success: false, error: '保存失败' });
@@ -215,13 +242,16 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
   }
   
   const { originalname, mimetype, size, path: filePath } = req.file;
+  const safeOriginalName = normalizeUploadedFilename(originalname);
   const db = database.getInstance();
+  const ipAddress = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.headers['x-real-ip'] || req.connection?.remoteAddress || req.ip;
+  const userAgent = req.get('User-Agent') || '';
   const sql = `
-    INSERT INTO clipboard (file_name, file_path, mime_type, file_size, user_id, created_at)
-    VALUES (?, ?, ?, ?, ?, datetime('now'))
+    INSERT INTO clipboard (file_name, file_path, mime_type, file_size, user_id, ip_address, user_agent, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
   `;
   
-  db.run(sql, [originalname, filePath, mimetype, size, req.user.id], function(err) {
+  db.run(sql, [safeOriginalName, filePath, mimetype, size, req.user.id, ipAddress, userAgent], function(err) {
     if (err) {
       console.error('保存文件信息失败:', err);
       // 删除已上传的文件
@@ -265,7 +295,7 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
     res.json({ 
       success: true, 
       id: this.lastID,
-      file_name: originalname,
+      file_name: safeOriginalName,
       file_path: filePath,
       mime_type: mimetype,
       file_size: size,
@@ -327,7 +357,8 @@ router.get('/file/:id', authenticateApiKey, (req, res) => {
   const { id } = req.params;
   const db = database.getInstance();
   
-  const sql = 'SELECT file_path, mime_type FROM clipboard WHERE id = ? AND user_id = ?';
+  console.log('[FILE][REQ]', { id, user: req.user?.id });
+  const sql = 'SELECT file_path, mime_type, file_name FROM clipboard WHERE id = ? AND user_id = ?';
   db.get(sql, [id, req.user.id], (err, row) => {
     if (err) {
       console.error('查询文件失败:', err);
@@ -335,18 +366,116 @@ router.get('/file/:id', authenticateApiKey, (req, res) => {
     }
     
     if (!row) {
+      console.warn('[FILE][MISS_ROW]', { id, user: req.user.id });
       return res.status(404).json({ success: false, error: '文件不存在' });
     }
     
-    // 检查文件是否存在
-    if (!fs.existsSync(row.file_path)) {
-      return res.status(404).json({ success: false, error: '文件不存在' });
+    // 检查文件是否存在，不存在尝试根据文件名在 uploads 目录回退
+    let targetPath = row.file_path;
+    if (!fs.existsSync(targetPath)) {
+      const fallback = path.join(__dirname, '../../uploads', path.basename(targetPath));
+      if (fs.existsSync(fallback)) {
+        console.log('[FILE][FALLBACK_HIT]', { id, original: targetPath, fallback });
+        targetPath = fallback;
+      } else {
+        console.warn('[FILE][MISSING_PATH]', { id, path: row.file_path, triedFallback: fallback });
+        return res.status(404).json({ success: false, error: '文件不存在' });
+      }
     }
     
-    // 设置响应头
-    res.setHeader('Content-Type', row.mime_type);
-    // 发送文件
-    res.sendFile(path.resolve(row.file_path));
+    // 根据是否显式要求下载决定是否添加 Content-Disposition
+    const wantDownload = req.query.download === '1';
+    const contentType = row.mime_type || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    if (wantDownload && row.file_name) {
+      res.setHeader('Content-Disposition', buildContentDisposition(row.file_name));
+    }
+    const abs = path.resolve(targetPath);
+    let stat = null;
+    try { stat = fs.statSync(abs); } catch(_) {}
+    if (stat) {
+      res.setHeader('Content-Length', stat.size);
+    }
+    console.log('[FILE][SEND]', { id, path: abs, mime: contentType, size: stat?.size, download: wantDownload });
+    res.sendFile(abs, (sendErr) => {
+      if (sendErr) {
+        console.error('[FILE][SEND_ERROR]', sendErr);
+        if (!res.headersSent) {
+          res.status(500).json({ success: false, error: '文件传输失败' });
+        }
+      }
+    });
+  });
+});
+
+// 原始文本 / Markdown 快速读取（用于前端预览，避免 sendFile 触发浏览器下载策略）
+router.get('/file/:id/raw', authenticateApiKey, (req, res) => {
+  const { id } = req.params;
+  const db = database.getInstance();
+  db.get('SELECT file_path, file_name, mime_type FROM clipboard WHERE id = ? AND user_id = ?', [id, req.user.id], (err, row) => {
+    if (err || !row) {
+      return res.status(404).json({ success: false, error: '文件不存在' });
+    }
+    let targetPath = row.file_path;
+    if (!fs.existsSync(targetPath)) {
+      const fallback = path.join(__dirname, '../../uploads', path.basename(targetPath));
+      if (fs.existsSync(fallback)) targetPath = fallback; else return res.status(404).json({ success: false, error: '文件不存在' });
+    }
+    // 仅允许一定大小内的文本直接读取（1MB）
+    const stat = fs.statSync(targetPath);
+    if (stat.size > 1024 * 1024) {
+      return res.status(413).json({ success: false, error: '文件过大，无法直接预览（>1MB）' });
+    }
+    // 判定是否文本/markdown
+    const nameLower = (row.file_name||'').toLowerCase();
+    const ext = path.extname(nameLower);
+    const textExts = new Set(['.md','.markdown','.txt','.log','.json','.yml','.yaml','.xml','.js','.ts','.mjs','.cjs','.py','.sh','.bash','.conf','.cfg','.ini']);
+    const isProbablyText = (row.mime_type && row.mime_type.startsWith('text/')) || row.mime_type === 'application/json' || row.mime_type === 'application/xml' || textExts.has(ext);
+    if (!isProbablyText) {
+      return res.status(415).json({ success: false, error: '非文本类型，无法作为纯文本预览' });
+    }
+    try {
+      const content = fs.readFileSync(targetPath, 'utf8');
+      res.setHeader('Content-Type', (row.mime_type || 'text/plain') + '; charset=utf-8');
+      res.json({ success: true, mime_type: row.mime_type, file_name: row.file_name, content });
+    } catch (e) {
+      console.error('[FILE][RAW_READ_ERROR]', e);
+      res.status(500).json({ success: false, error: '读取文件失败' });
+    }
+  });
+});
+
+// HEAD: 快速检查文件是否存在
+router.head('/file/:id', authenticateApiKey, (req, res) => {
+  const { id } = req.params;
+  const db = database.getInstance();
+  db.get('SELECT file_path FROM clipboard WHERE id = ? AND user_id = ?', [id, req.user.id], (err, row) => {
+    if (err || !row) return res.status(404).end();
+    let targetPath = row.file_path;
+    if (!fs.existsSync(targetPath)) {
+      const fallback = path.join(__dirname, '../../uploads', path.basename(targetPath));
+      if (fs.existsSync(fallback)) targetPath = fallback; else return res.status(404).end();
+    }
+    return res.status(200).end();
+  });
+});
+
+// 获取文件元信息（诊断用）
+router.get('/file/:id/meta', authenticateApiKey, (req, res) => {
+  const { id } = req.params;
+  const db = database.getInstance();
+  db.get('SELECT file_path, file_name, mime_type, file_size FROM clipboard WHERE id = ? AND user_id = ?', [id, req.user.id], (err, row) => {
+    if (err || !row) return res.status(404).json({ success:false, error:'文件不存在'});
+    let targetPath = row.file_path;
+    let fallbackUsed = false;
+    if (!fs.existsSync(targetPath)) {
+      const fallback = path.join(__dirname,'../../uploads', path.basename(targetPath));
+      if (fs.existsSync(fallback)) { targetPath = fallback; fallbackUsed = true; } else {
+        return res.json({ success:true, exists:false, id, file_name: row.file_name, mime_type: row.mime_type, file_size: row.file_size });
+      }
+    }
+    const stat = fs.statSync(targetPath);
+    res.json({ success:true, exists:true, id, file_name: row.file_name, mime_type: row.mime_type, file_size: stat.size, fallbackUsed });
   });
 });
 

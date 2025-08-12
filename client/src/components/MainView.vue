@@ -25,9 +25,11 @@
           <el-col :span="24">
             <AddContent 
               :api-key="apiKey"
+              :clipboard-items="clipboardItems"
               @text-added="$emit('add-text-content', $event)"
               @file-success="$emit('file-success', $event)"
               @file-error="$emit('file-error', $event)"
+              @download-file="(fileId, fileName, mimeType) => $emit('download-file', fileId, fileName, mimeType)"
             />
           </el-col>
         </el-row>
@@ -155,13 +157,11 @@ export default {
 
 <style scoped>
 .main-view {
-  padding: 20px;
-  background-color: #f5f5f5;
-  min-height: calc(100vh - 120px);
+  padding: 10px 10px 40px;
 }
 
 .main-tabs {
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-lg);
 }
 
 .card {

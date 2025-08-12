@@ -1,15 +1,57 @@
 # 更新日志
 
-## [1.2.16] - 2025-08-09
+## [1.3.0] - 2025-08-13
+
+### 新增
+
+- 聊天模式重构：`添加内容` 标签页改为实时聊天气泡界面（文本 / 文件混排、头像色散列、自动滚动、底部新消息提示、快速复制、文件/图片上传与预览）
+- 文本编辑增强：支持“编辑并复制 / 下载”对话框，提供字数统计、清空、一键本地下载（前端生成）
+- Markdown / 代码预览：引入 `marked` + `highlight.js`，支持多语言代码高亮与暗色模式适配
+- 原始文本预览端点：新增 `GET /api/clipboard/file/:id/raw`，1MB 内文本/Markdown 直接 JSON 返回，避免浏览器触发下载
+- 文件元信息端点：新增 `GET /api/clipboard/file/:id/meta` 便于诊断文件缺失 / 回退路径
+- HEAD 探测：`HEAD /api/clipboard/file/:id` 快速存在性检查（前端可做预取 / 验证）
+- 主题切换：增加 主题模式（跟随系统 / 浅色 / 深色）选择并本地持久化，自动监听系统暗色切换
+- 深色模式 UI 优化：统一阴影 / 渐变 / Tag / Button / Table / Bubble 对比度和霓虹轮廓效果
+- 全局现代化主题：新增大型 `theme.css`（玻璃拟态、渐变背景、强化动效、统一半径/阴影/间距变量）
+- 登录粒子背景：登录界面粒子漂浮动画与径向光晕装饰
+- 环境变量示例：新增 `.env.example` 提供关键变量模板（含 API Keys、端口、可选限流/清理配置）
+
+### 改进
+
+- 文件下载策略：后端 `?download=1` 时动态添加 UTF-8 安全 `Content-Disposition`；增加 `Content-Length` 头，增强 Safari 兼容
+- 文件路径回退：下载路由丢失原始路径时自动尝试 `uploads/` 目录同名文件，日志打印 `[FILE][FALLBACK_HIT]`
+- 中文文件名兼容：上传阶段进行拉丁1 → UTF-8 纠偏（启发式）并在下载时双 filename/filename* 提供安全回退
+- 统一前端下载逻辑：优先 fetch(blob) + 文件名解析，失败则降级原生导航 `<a>` 触发（解决特定浏览器早关 / CORS 缓存干扰）
+- 预览稳定性：文本/Markdown 预览优先使用 `/raw`，失败再回退二进制读取 + `Blob.text()`
+- 剪贴板历史操作栏：改为紧凑圆形按钮+Tooltip，自动隐藏“更多”按钮（仅剩删除时）
+- WebSocket 删除实时性：前端本地立即移除（无需刷新）
+- Store 结构：为新增实时元数据（ip_address / user_agent）扩展字段并保持前置插入排序更新
+- UI 细节：表格行悬浮浮动阴影、Tag / Button 微动画、滚动条美化、暗色对比度修正
 
 ### 修复
 
-- 修复访问日志API路径不匹配问题，确保管理面板能正确加载访问日志
+- 修复“文件下载失败: Load failed” 场景：补全 Content-Length、双路径回退、双策略下载
+- 修复缺失工具方法导致的 `isImage is not a function` 渲染崩溃
+- 修复编辑对话框最初缺少模板导致“编辑后复制”无效
+- 修复部分情况下的 Markdown / 文本文件无法预览（新增 raw 端点 + MIME / 扩展名多重判定）
+- 修复 dark 模式下部分对话框与表格低对比度问题
 
-## [1.2.15] - 2025-08-09
+### 迁移 / 升级注意
 
-### 修复
+- 新增依赖：`marked`, `highlight.js`（已写入 package.json）
+- 需在生产构建时确保 `client/src/styles/theme.css` 被打包（入口已在 `main.js` 中引入）
+- 数据库表已包含 `ip_address`, `user_agent` 列（升级脚本自动尝试 ALTER，日志容错）
+- 若已有历史文件路径丢失，可使用 `/file/:id/meta` 辅助排查是否命中 fallback
 
+### 日志标签
+
+- `[FILE][REQ]` 下载请求入口
+- `[FILE][FALLBACK_HIT]` 原路径缺失命中回退
+- `[FILE][MISSING_PATH]` 原路径与回退均失败
+- `[FILE][SEND]` 发送文件（含 size / mime / download 标志）
+- `[FILE][SEND_ERROR]` 发送阶段出错
+
+---
 - 修复Docker部署问题，添加缺失的vue-style-loader依赖
 - 修复Dockerfile中的前端构建配置，确保正确引用webpack配置文件
 

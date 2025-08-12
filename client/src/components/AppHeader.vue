@@ -5,7 +5,13 @@
         <h1><i class="el-icon-copy-document"></i> 跨平台剪贴板同步工具</h1>
       </div>
       <div class="header-right">
-        
+        <div class="theme-switch" v-if="isAuthenticated">
+          <el-select v-model="themeMode" size="small" class="theme-select" @change="applyTheme" placeholder="主题" style="width:120px;">
+            <el-option label="跟随系统" value="auto" />
+            <el-option label="浅色" value="light" />
+            <el-option label="深色" value="dark" />
+          </el-select>
+        </div>
         <div class="auth-info" v-if="isAuthenticated">
           <span class="username" v-if="username">欢迎, {{ username }}!</span>
           <el-button 
@@ -38,18 +44,50 @@ export default {
       default: ''
     }
   },
-  emits: ['logout'],
+  emits: ['logout','toggle-theme'],
   data() {
     return {
+      isDark: document.documentElement.classList.contains('theme-dark'),
+      themeMode: localStorage.getItem('clipboard_theme_mode') || 'auto'
     };
   },
   methods: {
     logout() {
       this.$emit('logout');
     },
-    
+    applyTheme(){
+      localStorage.setItem('clipboard_theme_mode', this.themeMode);
+      const root = document.documentElement;
+      if(this.themeMode === 'auto') {
+        const preferDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        root.classList.toggle('theme-dark', preferDark);
+        this.isDark = preferDark;
+      } else if(this.themeMode === 'dark') {
+        root.classList.add('theme-dark'); this.isDark = true;
+      } else {
+        root.classList.remove('theme-dark'); this.isDark = false;
+      }
+    }
   },
-  
+  mounted(){
+    const observer = new MutationObserver(()=>{
+      this.isDark = document.documentElement.classList.contains('theme-dark');
+    });
+    observer.observe(document.documentElement,{attributes:true,attributeFilter:['class']});
+    this._themeObserver = observer;
+    // system preference listener for auto mode
+    if(window.matchMedia){
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const handler = ()=>{ if(this.themeMode==='auto'){ this.applyTheme(); } };
+      mq.addEventListener('change', handler);
+      this._mqHandler = {mq, handler};
+    }
+    this.applyTheme();
+  },
+  unmounted(){
+    this._themeObserver && this._themeObserver.disconnect();
+    if(this._mqHandler){ this._mqHandler.mq.removeEventListener('change', this._mqHandler.handler); }
+  },
 }
 </script>
 
@@ -185,4 +223,6 @@ export default {
 .logout-button i {
   margin-right: 5px;
 }
+.theme-toggle { background: var(--gradient-accent); border:none; box-shadow:0 2px 6px -2px rgba(0,0,0,.25); }
+.theme-toggle:hover { filter:brightness(1.08); }
 </style>

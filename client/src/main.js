@@ -8,6 +8,7 @@ import AddContent from './components/AddContent.vue';
 import MyConnections from './components/MyConnections.vue';
 import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';
+import './styles/theme.css';
 import * as ElementPlusIconsVue from '@element-plus/icons-vue';
 
 // 引入服务和状态管理

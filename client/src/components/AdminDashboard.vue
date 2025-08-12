@@ -5,18 +5,17 @@
       <el-button type="primary" @click="refreshAllData">刷新数据</el-button>
     </div>
 
-    <el-tabs v-model="activeTab" type="border-card" @tab-change="handleTabChange">
+  <el-tabs v-model="activeTab" type="border-card" @tab-change="handleTabChange" class="admin-tabs">
       <!-- 用户管理标签页 -->
       <el-tab-pane label="用户管理" name="users">
         <div class="tab-content">
-          <el-card class="admin-card">
+          <el-card class="admin-card no-modern">
             <template #header>
-              <div class="card-header">
+              <div class="card-header modern-toolbar">
                 <span>用户列表</span>
-                <div class="header-actions">
-                  <el-button type="primary" @click="showAddUserDialog" size="small">
-                    <i class="el-icon-plus"></i> 添加用户
-                  </el-button>
+                <div class="header-actions action-buttons-group">
+                  <el-button type="primary" @click="showAddUserDialog" size="small" circle icon="el-icon-plus"/>
+                  <el-button @click="refreshAllData" size="small" circle icon="el-icon-refresh"/>
                 </div>
               </div>
             </template>
@@ -46,23 +45,28 @@
                   </div>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="200">
+              <el-table-column label="操作" width="140">
                 <template #default="scope">
-                  <el-button 
-                    size="small" 
-                    type="warning" 
-                    @click="showEditApiKeyDialog(scope.row)"
-                  >
-                    更新密钥
-                  </el-button>
-                  <el-button 
-                    size="small" 
-                    type="danger" 
-                    @click="deleteUser(scope.row.id)"
-                    :disabled="scope.row.is_admin"
-                  >
-                    删除
-                  </el-button>
+                  <div class="action-buttons-group">
+                    <el-tooltip content="更新密钥">
+                      <el-button 
+                        size="small" 
+                        type="warning" 
+                        circle
+                        icon="el-icon-edit"
+                        @click="showEditApiKeyDialog(scope.row)"
+                      />
+                    </el-tooltip>
+                    <el-tooltip content="删除用户" v-if="!scope.row.is_admin">
+                      <el-button 
+                        size="small" 
+                        type="danger" 
+                        circle
+                        icon="el-icon-delete"
+                        @click="deleteUser(scope.row.id)"
+                      />
+                    </el-tooltip>
+                  </div>
                 </template>
               </el-table-column>
             </el-table>
@@ -73,9 +77,9 @@
       <!-- 在线用户标签页 -->
       <el-tab-pane label="在线用户" name="active-users">
         <div class="tab-content">
-          <el-card class="admin-card">
+          <el-card class="admin-card no-modern">
             <template #header>
-              <div class="card-header">
+              <div class="card-header modern-toolbar">
                 <span>在线用户</span>
               </div>
             </template>
@@ -127,9 +131,9 @@
       
       <el-tab-pane label="访问记录" name="access-logs">
         <div class="tab-content">
-          <el-card class="admin-card">
+          <el-card class="admin-card no-modern">
             <template #header>
-              <div class="card-header">
+              <div class="card-header modern-toolbar">
                 <span>访问日志</span>
                 <div class="header-actions">
                   <el-pagination

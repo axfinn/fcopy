@@ -66,6 +66,8 @@ const mutations = {
       file_size: item.file_size || item.size || null, // 兼容后端返回的size字段
       mime_type: item.mime_type || null,
       user_id: item.user_id,
+  ip_address: item.ip_address || item.ip || null,
+  user_agent: item.user_agent || item.ua || null,
       created_at: item.created_at || new Date().toISOString(),
       // 添加type字段以匹配前端组件期望的格式
       type: item.type || (item.content ? 'text' : 'file')
@@ -92,6 +94,12 @@ const mutations = {
     }
     
     console.log('更新后的剪贴板项目列表:', state.clipboardItems);
+  },
+  REMOVE_CLIPBOARD_ITEM(id) {
+    const idx = state.clipboardItems.findIndex(i => i.id === id);
+    if (idx !== -1) {
+      state.clipboardItems.splice(idx, 1);
+    }
   },
 
   SET_ACCESS_LOGS(logs) {

@@ -2,8 +2,8 @@
   <div class="app-footer">
     <div class="footer-content">
       <div class="footer-section">
-        <h4>开源项目</h4>
-        <p>本项目是一个开源的跨平台剪贴板同步工具</p>
+        <h4>开源</h4>
+        <p class="meta-text">跨平台剪贴板同步工具</p>
         <div class="github-links" v-if="githubInfo">
           <a :href="githubInfo.html_url" target="_blank" rel="noopener" class="project-link">
             <i class="el-icon-star-off"></i> GitHub项目: {{ githubInfo.html_url }}
@@ -23,7 +23,7 @@
       </div>
       
       <div class="footer-section">
-        <h4>统计信息</h4>
+        <h4>统计</h4>
         <div class="stats" v-if="githubInfo">
           <span class="stat-item">
             <i class="el-icon-collection"></i> Stars: {{ githubInfo.stars }}
@@ -38,7 +38,7 @@
       </div>
       
       <div class="footer-section">
-        <h4>使用说明</h4>
+        <h4>说明</h4>
         <ul class="usage-guide">
           <li>使用 Ctrl+C / Cmd+C 复制内容到剪贴板</li>
           <li>使用 Ctrl+V / Cmd+V 粘贴截图或文件</li>
@@ -49,8 +49,8 @@
       </div>
       
       <div class="footer-section">
-        <h4>支持我们</h4>
-        <p>如果您觉得这个项目有用，请在GitHub上给我们一个Star!</p>
+        <h4>支持</h4>
+        <p class="meta-text">觉得有用？欢迎 Star ⭐️</p>
         <p class="copyright">
           &copy; {{ new Date().getFullYear() }} 跨平台剪贴板同步工具. 保留所有权利.
         </p>
