@@ -458,7 +458,29 @@ export default defineComponent({
       try {
         const response = await api.addTextContent(content);
         if (response.id) {
-          // 通过WebSocket实时更新，不需要手动刷新列表
+          // 手动添加到store以确保界面立即更新
+          const newItem = {
+            id: response.id,
+            content: content,
+            type: 'text',
+            created_at: new Date().toLocaleString('zh-CN', { 
+              timeZone: 'Asia/Shanghai',
+              year: 'numeric',
+              month: '2-digit', 
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false
+            }).replace(/\//g, '/'),
+            user_id: store.state.userInfo?.id,
+            ip_address: '',
+            user_agent: navigator.userAgent
+          };
+          
+          // 立即更新store
+          store.mutations.ADD_CLIPBOARD_ITEM(newItem);
+          
           if (window.$message) {
             window.$message.success('内容添加成功');
           }
@@ -474,8 +496,35 @@ export default defineComponent({
     },
     
     // 处理文件上传成功
-    handleFileSuccess() {
-      // 通过WebSocket实时更新，不需要手动刷新列表
+    handleFileSuccess(result) {
+      // 手动添加到store以确保界面立即更新
+      if (result && result.id) {
+        const newItem = {
+          id: result.id,
+          file_name: result.file_name,
+          file_path: result.file_path,
+          mime_type: result.mime_type,
+          file_size: result.file_size,
+          type: 'file',
+          created_at: new Date().toLocaleString('zh-CN', { 
+            timeZone: 'Asia/Shanghai',
+            year: 'numeric',
+            month: '2-digit', 
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          }).replace(/\//g, '/'),
+          user_id: store.state.userInfo?.id,
+          ip_address: '',
+          user_agent: navigator.userAgent
+        };
+        
+        // 立即更新store
+        store.mutations.ADD_CLIPBOARD_ITEM(newItem);
+      }
+      
       if (window.$message) {
         window.$message.success('文件上传成功');
       }
