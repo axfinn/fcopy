@@ -36,7 +36,7 @@
             :users="store.state.users"
             :active-users="store.state.activeUsers"
             :access-logs="store.state.accessLogs"
-            :clipboard-items="store.state.clipboardItems"
+            :clipboard-items="store.state.items"
             :current-page="store.state.currentPage"
             :page-size="store.state.pageSize"
             :total-items="store.state.totalItems"
@@ -58,6 +58,7 @@
             @size-change="handleSizeChange"
             @search="handleSearch"
             @page-change="handlePageChange"
+            ref="mainView"
           />
         </el-main>
         
@@ -194,6 +195,13 @@ export default defineComponent({
     if (this.$message) {
       window.$message = this.$message;
     }
+    
+    // 设置MainView的全局引用，以便WebSocket能够通知聊天框
+    this.$nextTick(() => {
+      if (this.$refs.mainView) {
+        window.mainViewRef = this.$refs.mainView;
+      }
+    });
     
     // 尝试从本地存储获取API密钥
     const storedApiKey = localStorage.getItem('clipboard_api_key');

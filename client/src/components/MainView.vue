@@ -19,17 +19,17 @@
         </el-row>
       </el-tab-pane>
       
-      <!-- 添加内容标签页 -->
-      <el-tab-pane label="添加内容" name="add">
+      <!-- 聊天标签页 -->
+      <el-tab-pane label="聊天" name="chat">
         <el-row :gutter="20">
           <el-col :span="24">
-            <AddContent 
+            <ChatBox 
               :api-key="apiKey"
-              :clipboard-items="clipboardItems"
-              @text-added="$emit('add-text-content', $event)"
-              @file-success="$emit('file-success', $event)"
-              @file-error="$emit('file-error', $event)"
-              @download-file="(fileId, fileName, mimeType) => $emit('download-file', fileId, fileName, mimeType)"
+              @message-sent="handleMessageSent"
+              @file-uploaded="handleFileUploaded"
+              @preview-text="$emit('preview-text-file', $event)"
+              @download-file="handleDownloadFile"
+              ref="chatBox"
             />
           </el-col>
         </el-row>
@@ -72,7 +72,7 @@
 
 <script>
 import ClipboardHistoryImproved from './ClipboardHistoryImproved.vue';
-import AddContent from './AddContent.vue';
+import ChatBox from './ChatBox.vue';
 import AdminDashboard from './AdminDashboard.vue';
 import MyConnections from './MyConnections.vue';
 
@@ -80,7 +80,7 @@ export default {
   name: 'MainView',
   components: {
     ClipboardHistoryImproved,
-    AddContent,
+    ChatBox,
     AdminDashboard,
     MyConnections
   },
@@ -134,6 +134,25 @@ export default {
     
     fetchAdminData() {
       this.$emit('fetch-admin-data');
+    },
+    
+    handleMessageSent(result) {
+      this.$emit('add-text-content', result.content);
+    },
+    
+    handleFileUploaded(result) {
+      this.$emit('file-success', result);
+    },
+    
+    handleDownloadFile(message) {
+      this.$emit('download-file', message.id, message.file_name, message.mime_type);
+    },
+    
+    // 从外部添加消息到聊天框（WebSocket等）
+    addMessageToChat(message) {
+      if (this.$refs.chatBox) {
+        this.$refs.chatBox.addMessage(message);
+      }
     }
   },
   watch: {

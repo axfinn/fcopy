@@ -111,31 +111,45 @@ const mutations = {
 // 添加兼容性getters - 使用可写的计算属性
 Object.defineProperty(state, 'clipboardItems', {
   get() { return this.items; },
-  set() {} // 允许设置但忽略
+  set() {}, // 允许设置但忽略
+  enumerable: true,
+  configurable: true
 });
 Object.defineProperty(state, 'isAuthenticated', {
   get() { return !!this.userInfo; },
-  set() {} // 允许设置但忽略
+  set() {}, // 允许设置但忽略
+  enumerable: true,
+  configurable: true
 });
 Object.defineProperty(state, 'username', {
   get() { return this.userInfo?.username; },
-  set() {} // 允许设置但忽略
+  set() {}, // 允许设置但忽略
+  enumerable: true,
+  configurable: true
 });
 Object.defineProperty(state, 'currentPage', {
   get() { return this.pagination.currentPage; },
-  set() {} // 允许设置但忽略
+  set() {}, // 允许设置但忽略
+  enumerable: true,
+  configurable: true
 });
 Object.defineProperty(state, 'pageSize', {
   get() { return this.pagination.pageSize; },
-  set() {} // 允许设置但忽略
+  set() {}, // 允许设置但忽略
+  enumerable: true,
+  configurable: true
 });
 Object.defineProperty(state, 'totalItems', {
   get() { return this.pagination.total; },
-  set() {} // 允许设置但忽略
+  set() {}, // 允许设置但忽略
+  enumerable: true,
+  configurable: true
 });
-Object.defineProperty(state, 'searchKeyword', {
-  get() { return this.searchParams.keyword; },
-  set() {} // 允许设置但忽略
+Object.defineProperty(state, 'isAdmin', {
+  get() { return !!this.userInfo?.is_admin; },
+  set() {}, // 允许设置但忽略
+  enumerable: true,
+  configurable: true
 });
 
 // 创建store实例
