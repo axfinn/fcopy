@@ -183,6 +183,8 @@ export default {
       newMessageCount: 0,
       messageIdCounter: 0,
       currentUser: null,
+      clientId: null, // 唯一的客户端标识符
+      sentMessageIds: new Set(), // 跟踪此客户端发送的消息ID
       
       // 文件预览
       imagePreviewVisible: false,
@@ -205,16 +207,110 @@ export default {
   },
   mounted() {
     this.initCurrentUser();
+    this.initWebSocketListeners();
+    this.loadInitialMessages();
     this.scrollToBottom();
   },
+  beforeUnmount() {
+    this.removeWebSocketListeners();
+  },
   methods: {
+    // 初始化WebSocket监听器
+    initWebSocketListeners() {
+      // 监听自定义事件
+      window.addEventListener('clipboard-websocket-update', this.handleWebSocketMessage);
+      window.addEventListener('clipboard-websocket-delete', this.handleWebSocketDelete);
+    },
+    
+    // 移除WebSocket监听器
+    removeWebSocketListeners() {
+      window.removeEventListener('clipboard-websocket-update', this.handleWebSocketMessage);
+      window.removeEventListener('clipboard-websocket-delete', this.handleWebSocketDelete);
+    },
+    
+    // 处理WebSocket消息
+    handleWebSocketMessage(event) {
+      const data = event.detail;
+      console.log('[CHAT] 收到WebSocket消息:', data);
+      
+      // 检查是否是本客户端已发送的消息
+      if (this.sentMessageIds.has(data.id)) {
+        console.log('[CHAT] 跳过本客户端已发送的消息:', data.id);
+        return;
+      }
+      
+      // 添加来自其他客户端的消息
+      this.addMessage(data);
+      
+      // 显示提示
+      if (!this.isAtBottom) {
+        this.$message.info(`收到来自其他客户端的新消息`);
+      }
+    },
+    
+    // 处理WebSocket删除消息
+    handleWebSocketDelete(event) {
+      const data = event.detail;
+      console.log('[CHAT] 收到删除消息:', data);
+      
+      if (data && data.id) {
+        // 从聊天记录中移除对应消息
+        const index = this.messages.findIndex(msg => msg.id === data.id);
+        if (index > -1) {
+          this.messages.splice(index, 1);
+          console.log('[CHAT] 从聊天记录中移除消息:', data.id);
+        }
+      }
+    },
+    
     // 初始化当前用户信息
     initCurrentUser() {
-      // 简单的IP识别，实际应用中可以用更复杂的用户识别
+      // 生成唯一的客户端ID
+      this.clientId = this.generateClientId();
+      
       this.currentUser = {
         ip: this.getClientIP(),
-        userAgent: navigator.userAgent
+        userAgent: navigator.userAgent,
+        clientId: this.clientId
       };
+      
+      // 存储到localStorage，这样可以在多个标签页中识别同一客户端
+      localStorage.setItem('chatbox_client_id', this.clientId);
+    },
+    
+    // 生成客户端ID
+    generateClientId() {
+      // 先检查localStorage中是否已有
+      const existingId = localStorage.getItem('chatbox_client_id');
+      if (existingId) {
+        return existingId;
+      }
+      
+      // 生成新的ID
+      return 'client_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    },
+    
+    // 加载初始消息
+    async loadInitialMessages() {
+      try {
+        const response = await fetch('/api/clipboard/history?page=1&size=20', {
+          headers: {
+            'X-API-Key': this.apiKey
+          }
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          const items = result.data?.items || result.data || [];
+          
+          // 将历史消息添加到聊天框（最近的消息在后面）
+          for (const item of items.reverse()) {
+            this.addMessage(item);
+          }
+        }
+      } catch (error) {
+        console.error('加载历史消息失败:', error);
+      }
     },
     
     // 获取客户端IP（模拟）
@@ -270,12 +366,16 @@ export default {
         // 更新消息状态为成功，更新服务器返回的ID
         const messageIndex = this.messages.findIndex(m => m.id === messageId);
         if (messageIndex > -1) {
+          const serverId = result.id || messageId;
           this.messages[messageIndex] = {
             ...this.messages[messageIndex],
-            id: result.id || messageId,
+            id: serverId,
             status: 'sent',
             created_at: result.created_at || message.created_at
           };
+          
+          // 记录此消息ID，避免WebSocket重复显示
+          this.sentMessageIds.add(serverId);
         }
         
         this.$emit('message-sent', result);
@@ -369,6 +469,9 @@ export default {
           created_at: result.created_at || this.messages[messageIndex].created_at
         };
         delete this.messages[messageIndex]._uploadFile;
+        
+        // 记录此消息ID，避免WebSocket重复显示
+        this.sentMessageIds.add(result.id);
       }
       
       this.$emit('file-uploaded', result);
@@ -413,9 +516,10 @@ export default {
       }
     },
     
-    // 判断是否是自己的消息
+    // 判断是否是自己的消息 (用于显示样式)
     isOwnMessage(message) {
-      return message.ip_address === this.currentUser.ip;
+      // 用于UI显示的判断，基于user agent匹配
+      return message.user_agent === this.currentUser.userAgent;
     },
     
     // 清空聊天

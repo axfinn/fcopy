@@ -34,15 +34,13 @@ export function useSocket() {
     // 监听剪贴板更新事件
     socketInstance.value.on('clipboard-update', (data) => {
       try {
-        console.log('[SOCKET_CLIENT] 收到clipboard-update消息:', data);
         // 将新内容添加到列表顶部
         store.mutations.ADD_CLIPBOARD_ITEM(data);
-        console.log('[SOCKET_CLIENT] 已添加到store, 当前列表长度:', store.state.items.length);
         
-        // 同时通知聊天框
-        if (window.mainViewRef) {
-          window.mainViewRef.addMessageToChat(data);
-        }
+        // 通过自定义事件通知聊天框
+        window.dispatchEvent(new CustomEvent('clipboard-websocket-update', {
+          detail: data
+        }));
         
         if (window.$message) {
           window.$message.success('收到新内容');
@@ -57,6 +55,11 @@ export function useSocket() {
       try {
         if (!data || typeof data.id === 'undefined') return;
         store.mutations.REMOVE_CLIPBOARD_ITEM(data.id);
+        
+        // 通过自定义事件通知聊天框
+        window.dispatchEvent(new CustomEvent('clipboard-websocket-delete', {
+          detail: data
+        }));
       } catch (e) {
         console.error('处理删除事件出错:', e);
       }

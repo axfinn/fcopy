@@ -196,10 +196,14 @@ export default defineComponent({
       window.$message = this.$message;
     }
     
-    // 设置MainView的全局引用，以便WebSocket能够通知聊天框
+    // 设置MainView和Socket服务的全局引用
     this.$nextTick(() => {
       if (this.$refs.mainView) {
         window.mainViewRef = this.$refs.mainView;
+      }
+      // 设置socket服务实例的全局引用
+      if (this.socketService) {
+        window.socketServiceInstance = this.socketService;
       }
     });
     
