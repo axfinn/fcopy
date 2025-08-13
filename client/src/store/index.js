@@ -42,45 +42,47 @@ const mutations = {
   
   // 兼容性方法 - 将旧的方法映射到新的模块方法
   SET_AUTHENTICATED(isAuthenticated) {
-    state.isAuthenticated = isAuthenticated;
+    // 直接调用SET_USER_INFO来更新用户信息
+    if (isAuthenticated) {
+      // 如果已有用户信息，只更新认证状态
+      if (state.userInfo) {
+        user.mutations.SET_USER_INFO(state, { ...state.userInfo, isAuthenticated: true });
+      } else {
+        user.mutations.SET_USER_INFO(state, { isAuthenticated: true });
+      }
+    } else {
+      user.mutations.SET_USER_INFO(state, null);
+    }
   },
   
   SET_ADMIN(isAdmin) {
-    state.isAdmin = isAdmin;
     if (state.userInfo) {
-      state.userInfo = { ...state.userInfo, is_admin: isAdmin };
+      user.mutations.SET_USER_INFO(state, { ...state.userInfo, is_admin: isAdmin });
     }
   },
   
   SET_USERNAME(username) {
-    state.username = username;
     if (state.userInfo) {
-      state.userInfo = { ...state.userInfo, username };
+      user.mutations.SET_USER_INFO(state, { ...state.userInfo, username });
+    } else {
+      user.mutations.SET_USER_INFO(state, { username });
     }
   },
   
   SET_CURRENT_PAGE(page) {
-    if (state.pagination) {
-      state.pagination.currentPage = page;
-    }
+    clipboard.mutations.SET_PAGINATION(state, { currentPage: page });
   },
   
   SET_PAGE_SIZE(size) {
-    if (state.pagination) {
-      state.pagination.pageSize = size;
-    }
+    clipboard.mutations.SET_PAGINATION(state, { pageSize: size });
   },
   
   SET_TOTAL_ITEMS(total) {
-    if (state.pagination) {
-      state.pagination.total = total;
-    }
+    clipboard.mutations.SET_PAGINATION(state, { total });
   },
   
   SET_SEARCH_KEYWORD(keyword) {
-    if (state.searchParams) {
-      state.searchParams.keyword = keyword;
-    }
+    clipboard.mutations.SET_SEARCH_PARAMS(state, { keyword });
   },
   
   initializeBackground() {
@@ -106,32 +108,39 @@ const mutations = {
   }
 };
 
-// 添加兼容性getters
+// 添加兼容性getters - 使用可写的计算属性
 Object.defineProperty(state, 'clipboardItems', {
-  get() { return this.items; }
+  get() { return this.items; },
+  set() {} // 允许设置但忽略
 });
 Object.defineProperty(state, 'isAuthenticated', {
-  get() { return !!this.userInfo; }
+  get() { return !!this.userInfo; },
+  set() {} // 允许设置但忽略
 });
 Object.defineProperty(state, 'username', {
-  get() { return this.userInfo?.username; }
+  get() { return this.userInfo?.username; },
+  set() {} // 允许设置但忽略
 });
 Object.defineProperty(state, 'currentPage', {
-  get() { return this.pagination.currentPage; }
+  get() { return this.pagination.currentPage; },
+  set() {} // 允许设置但忽略
 });
 Object.defineProperty(state, 'pageSize', {
-  get() { return this.pagination.pageSize; }
+  get() { return this.pagination.pageSize; },
+  set() {} // 允许设置但忽略
 });
 Object.defineProperty(state, 'totalItems', {
-  get() { return this.pagination.total; }
+  get() { return this.pagination.total; },
+  set() {} // 允许设置但忽略
 });
 Object.defineProperty(state, 'searchKeyword', {
-  get() { return this.searchParams.keyword; }
+  get() { return this.searchParams.keyword; },
+  set() {} // 允许设置但忽略
 });
 
 // 创建store实例
 const store = {
-  state: readonly(state),
+  state: state, // 移除readonly，因为mutations需要能够修改状态
   mutations
 };
 
