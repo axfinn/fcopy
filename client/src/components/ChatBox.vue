@@ -71,14 +71,10 @@
                 </div>
               </template>
               
-              <!-- 状态指示器 -->
-              <div v-if="message.status === 'sending'" class="status-indicator">
+              <!-- 发送状态简化显示 -->
+              <div v-if="sending && message === messages[messages.length - 1]" class="status-indicator">
                 <el-icon class="is-loading"><Loading /></el-icon>
-              </div>
-              <div v-else-if="message.status === 'failed'" class="status-indicator error">
-                <el-icon><WarningFilled /></el-icon>
-                <span>发送失败</span>
-                <el-button size="small" text type="primary" @click="resendMessage(message)">重试</el-button>
+                <span>发送中...</span>
               </div>
             </div>
           </div>
@@ -109,7 +105,6 @@
               :show-file-list="false"
               :on-success="handleFileSuccess"
               :on-error="handleFileError"
-              :before-upload="handleBeforeUpload"
               multiple
             >
               <el-button size="small" :icon="Paperclip">文件</el-button>
@@ -184,7 +179,6 @@ export default {
       messageIdCounter: 0,
       currentUser: null,
       clientId: null, // 唯一的客户端标识符
-      sentMessageIds: new Set(), // 跟踪此客户端发送的消息ID
       
       // 文件预览
       imagePreviewVisible: false,
@@ -232,22 +226,22 @@ export default {
     handleWebSocketMessage(event) {
       const data = event.detail;
       
-      // 检查是否是本客户端已发送的消息
-      if (this.sentMessageIds.has(data.id)) {
-        return;
-      }
-      
-      // 检查是否已经存在（避免重复）
+      // 简单检查是否已经存在（避免重复）
       if (this.messages.find(m => m.id === data.id)) {
         return;
       }
       
-      // 添加来自其他客户端的消息
+      // 添加消息（包括自己发送的）
       this.addMessage(data);
       
-      // 显示提示（如果不在底部）
-      if (!this.isAtBottom) {
-        this.$message.info('收到新消息');
+      // 滚动到底部显示新消息
+      if (this.isAtBottom) {
+        this.$nextTick(() => {
+          this.scrollToBottom();
+        });
+      } else {
+        // 如果不在底部，显示新消息提示
+        this.newMessageCount++;
       }
     },
     
@@ -338,34 +332,15 @@ export default {
       return '192.168.1.' + Math.floor(Math.random() * 255);
     },
     
-    // 生成消息ID
-    generateMessageId() {
-      return `msg_${Date.now()}_${++this.messageIdCounter}`;
-    },
-    
     // 发送文本消息
     async sendMessage() {
       if (!this.inputText.trim() || this.sending) return;
       
       const messageText = this.inputText.trim();
-      const messageId = this.generateMessageId();
       
-      // 立即添加到界面，状态为发送中
-      const message = {
-        id: messageId,
-        type: 'text',
-        content: messageText,
-        status: 'sending',
-        created_at: new Date(),
-        ip_address: this.currentUser.ip,
-        user_agent: this.currentUser.userAgent,
-        side: 'right' // 自己发送的消息
-      };
-      
-      this.messages.push(message);
-      this.inputText = '';
-      this.scrollToBottom();
+      // 显示发送中状态
       this.sending = true;
+      this.inputText = '';
       
       try {
         const response = await fetch('/api/clipboard/text', {
@@ -383,132 +358,34 @@ export default {
         
         const result = await response.json();
         
-        // 更新消息状态为成功，更新服务器返回的ID
-        const messageIndex = this.messages.findIndex(m => m.id === messageId);
-        if (messageIndex > -1) {
-          const serverId = result.id || messageId;
-          this.messages[messageIndex] = {
-            ...this.messages[messageIndex],
-            id: serverId,
-            status: 'sent',
-            created_at: result.created_at || message.created_at
-          };
-          
-          // 记录此消息ID，避免WebSocket重复显示
-          this.sentMessageIds.add(serverId);
-        }
+        // 不在这里显示消息！等待WebSocket广播
+        // 服务器会向所有客户端（包括当前客户端）广播消息
         
         this.$emit('message-sent', result);
-        this.$message.success('消息发送成功');
+        // 不显示成功提示，避免干扰
         
       } catch (error) {
         console.error('发送消息失败:', error);
         
-        // 更新消息状态为失败
-        const messageIndex = this.messages.findIndex(m => m.id === messageId);
-        if (messageIndex > -1) {
-          this.messages[messageIndex].status = 'failed';
-        }
-        
+        // 恢复输入内容，让用户可以重试
+        this.inputText = messageText;
         this.$message.error('消息发送失败: ' + error.message);
       } finally {
         this.sending = false;
       }
     },
     
-    // 重新发送消息
-    async resendMessage(message) {
-      message.status = 'sending';
-      
-      try {
-        const response = await fetch('/api/clipboard/text', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': this.apiKey
-          },
-          body: JSON.stringify({ content: message.content })
-        });
-        
-        if (!response.ok) {
-          throw new Error('重发失败');
-        }
-        
-        const result = await response.json();
-        message.status = 'sent';
-        message.id = result.id || message.id;
-        
-        this.$emit('message-sent', result);
-        this.$message.success('消息重发成功');
-        
-      } catch (error) {
-        console.error('重发消息失败:', error);
-        message.status = 'failed';
-        this.$message.error('重发失败: ' + error.message);
-      }
-    },
-    
-    // 处理文件上传前
-    handleBeforeUpload(file) {
-      const messageId = this.generateMessageId();
-      
-      // 立即添加文件消息到界面
-      const message = {
-        id: messageId,
-        type: 'file',
-        file_name: file.name,
-        file_size: file.size,
-        mime_type: file.type,
-        status: 'sending',
-        created_at: new Date(),
-        ip_address: this.currentUser.ip,
-        user_agent: this.currentUser.userAgent,
-        side: 'right',
-        _uploadFile: file
-      };
-      
-      this.messages.push(message);
-      this.scrollToBottom();
-      
-      return true;
-    },
-    
     // 处理文件上传成功
     handleFileSuccess(result, file) {
-      // 找到对应的消息并更新
-      const messageIndex = this.messages.findIndex(m => 
-        m._uploadFile && m._uploadFile.name === file.name && m.status === 'sending'
-      );
-      
-      if (messageIndex > -1) {
-        this.messages[messageIndex] = {
-          ...this.messages[messageIndex],
-          id: result.id,
-          file_path: result.file_path,
-          status: 'sent',
-          created_at: result.created_at || this.messages[messageIndex].created_at
-        };
-        delete this.messages[messageIndex]._uploadFile;
-        
-        // 记录此消息ID，避免WebSocket重复显示
-        this.sentMessageIds.add(result.id);
-      }
+      // 不在这里显示消息！等待WebSocket广播
+      // 服务器会向所有客户端（包括当前客户端）广播消息
       
       this.$emit('file-uploaded', result);
-      this.$message.success('文件上传成功');
+      // 不显示成功提示，避免干扰
     },
     
     // 处理文件上传失败
     handleFileError(error, file) {
-      const messageIndex = this.messages.findIndex(m => 
-        m._uploadFile && m._uploadFile.name === file.name && m.status === 'sending'
-      );
-      
-      if (messageIndex > -1) {
-        this.messages[messageIndex].status = 'failed';
-        delete this.messages[messageIndex]._uploadFile;
-      }
-      
       this.$message.error('文件上传失败');
     },
     
@@ -564,9 +441,7 @@ export default {
         if (item.kind === 'file') {
           const file = item.getAsFile();
           if (file) {
-            this.handleBeforeUpload(file);
-            
-            // 手动上传文件
+            // 直接上传文件，等待WebSocket广播结果
             const formData = new FormData();
             formData.append('file', file);
             
@@ -578,6 +453,10 @@ export default {
                 },
                 body: formData
               });
+              
+              if (!response.ok) {
+                throw new Error('上传失败');
+              }
               
               const result = await response.json();
               this.handleFileSuccess(result, file);
