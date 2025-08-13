@@ -8,6 +8,9 @@ class SocketService {
 
   // 连接WebSocket
   connect(apiKey) {
+    // 先断开现有连接
+    this.disconnect();
+    
     this.socket = io('/', {
       auth: {
         apiKey
@@ -25,6 +28,10 @@ class SocketService {
   // 断开连接
   disconnect() {
     if (this.socket) {
+      // 清理所有事件监听器
+      this.listeners.forEach((callback, event) => {
+        this.socket.off(event, callback);
+      });
       this.socket.disconnect();
       this.socket = null;
     }

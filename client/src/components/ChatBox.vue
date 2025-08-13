@@ -231,34 +231,35 @@ export default {
     // 处理WebSocket消息
     handleWebSocketMessage(event) {
       const data = event.detail;
-      console.log('[CHAT] 收到WebSocket消息:', data);
       
       // 检查是否是本客户端已发送的消息
       if (this.sentMessageIds.has(data.id)) {
-        console.log('[CHAT] 跳过本客户端已发送的消息:', data.id);
+        return;
+      }
+      
+      // 检查是否已经存在（避免重复）
+      if (this.messages.find(m => m.id === data.id)) {
         return;
       }
       
       // 添加来自其他客户端的消息
       this.addMessage(data);
       
-      // 显示提示
+      // 显示提示（如果不在底部）
       if (!this.isAtBottom) {
-        this.$message.info(`收到来自其他客户端的新消息`);
+        this.$message.info('收到新消息');
       }
     },
     
     // 处理WebSocket删除消息
     handleWebSocketDelete(event) {
       const data = event.detail;
-      console.log('[CHAT] 收到删除消息:', data);
       
       if (data && data.id) {
         // 从聊天记录中移除对应消息
         const index = this.messages.findIndex(msg => msg.id === data.id);
         if (index > -1) {
           this.messages.splice(index, 1);
-          console.log('[CHAT] 从聊天记录中移除消息:', data.id);
         }
       }
     },
@@ -305,12 +306,31 @@ export default {
           
           // 将历史消息添加到聊天框（最近的消息在后面）
           for (const item of items.reverse()) {
-            this.addMessage(item);
+            this.addHistoryMessage(item); // 使用专门的历史消息添加方法
           }
         }
       } catch (error) {
         console.error('加载历史消息失败:', error);
       }
+    },
+    
+    // 添加历史消息（不会触发WebSocket过滤）
+    addHistoryMessage(message) {
+      // 避免重复添加
+      if (this.messages.find(m => m.id === message.id)) {
+        return;
+      }
+      
+      const formattedMessage = {
+        ...message,
+        side: this.isOwnMessage(message) ? 'right' : 'left',
+        status: 'sent',
+        created_at: new Date(message.created_at)
+      };
+      
+      this.messages.push(formattedMessage);
+      
+      // 注意：历史消息不添加到sentMessageIds，因为它们不是当前客户端发送的
     },
     
     // 获取客户端IP（模拟）
