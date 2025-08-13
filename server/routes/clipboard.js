@@ -193,37 +193,53 @@ router.post('/text', authenticateApiKey, (req, res) => {
       return res.status(500).json({ success: false, error: '保存失败' });
     }
     
+    const insertedId = this.lastID;
+    console.log('[TEXT_UPLOAD] 文本保存成功, ID:', insertedId);
+    
     // 通过 Socket.IO 通知所有客户端（需要广播给特定用户）
     const io = req.app.get('io');
     if (io) {
+      console.log('[SOCKET] 准备发送文本上传通知, 用户ID:', req.user.id);
       // 获取新插入的记录
-      db.get('SELECT * FROM clipboard WHERE id = ?', [this.lastID], (err, row) => {
-        if (!err && row) {
-          // 格式化时间
-          const utcDate = new Date(row.created_at);
-          // 转换为上海时区时间
-          const shanghaiTime = new Date(utcDate.getTime() + 8 * 60 * 60 * 1000);
-          
-          // 格式化为 "YYYY/MM/DD HH:mm:ss" 格式
-          const year = shanghaiTime.getFullYear();
-          const month = String(shanghaiTime.getMonth() + 1).padStart(2, '0');
-          const day = String(shanghaiTime.getDate()).padStart(2, '0');
-          const hours = String(shanghaiTime.getHours()).padStart(2, '0');
-          const minutes = String(shanghaiTime.getMinutes()).padStart(2, '0');
-          const seconds = String(shanghaiTime.getSeconds()).padStart(2, '0');
-          
-          const formattedTime = `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
-          
-          const formattedRow = {
-            ...row,
-            created_at: formattedTime,
-            type: 'text'
-          };
-          
-          // 只向对应的用户发送更新
-          io.to(`user_${req.user.id}`).emit('clipboard-update', formattedRow);
+      db.get('SELECT * FROM clipboard WHERE id = ?', [insertedId], (err, row) => {
+        if (err) {
+          console.error('[SOCKET] 查询新插入文本记录失败:', err);
+          return;
         }
+        if (!row) {
+          console.error('[SOCKET] 未找到新插入的文本记录, ID:', insertedId);
+          return;
+        }
+        
+        console.log('[SOCKET] 查询到新插入文本记录:', row);
+        
+        // 格式化时间
+        const utcDate = new Date(row.created_at);
+        // 转换为上海时区时间
+        const shanghaiTime = new Date(utcDate.getTime() + 8 * 60 * 60 * 1000);
+        
+        // 格式化为 "YYYY/MM/DD HH:mm:ss" 格式
+        const year = shanghaiTime.getFullYear();
+        const month = String(shanghaiTime.getMonth() + 1).padStart(2, '0');
+        const day = String(shanghaiTime.getDate()).padStart(2, '0');
+        const hours = String(shanghaiTime.getHours()).padStart(2, '0');
+        const minutes = String(shanghaiTime.getMinutes()).padStart(2, '0');
+        const seconds = String(shanghaiTime.getSeconds()).padStart(2, '0');
+        
+        const formattedTime = `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+        
+        const formattedRow = {
+          ...row,
+          created_at: formattedTime,
+          type: 'text'
+        };
+        
+        console.log('[SOCKET] 发送文本clipboard-update事件到房间user_' + req.user.id + ':', formattedRow);
+        // 只向对应的用户发送更新
+        io.to(`user_${req.user.id}`).emit('clipboard-update', formattedRow);
       });
+    } else {
+      console.warn('[SOCKET] Socket.IO实例不可用');
     }
     
     res.json({ 
@@ -259,37 +275,53 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
       return res.status(500).json({ success: false, error: '保存失败' });
     }
     
+    const insertedId = this.lastID;
+    console.log('[FILE_UPLOAD] 文件保存成功, ID:', insertedId);
+    
     // 通过 Socket.IO 通知所有客户端（需要广播给特定用户）
     const io = req.app.get('io');
     if (io) {
+      console.log('[SOCKET] 准备发送文件上传通知, 用户ID:', req.user.id);
       // 获取新插入的记录
-      db.get('SELECT * FROM clipboard WHERE id = ?', [this.lastID], (err, row) => {
-        if (!err && row) {
-          // 格式化时间
-          const utcDate = new Date(row.created_at);
-          // 转换为上海时区时间
-          const shanghaiTime = new Date(utcDate.getTime() + 8 * 60 * 60 * 1000);
-          
-          // 格式化为 "YYYY/MM/DD HH:mm:ss" 格式
-          const year = shanghaiTime.getFullYear();
-          const month = String(shanghaiTime.getMonth() + 1).padStart(2, '0');
-          const day = String(shanghaiTime.getDate()).padStart(2, '0');
-          const hours = String(shanghaiTime.getHours()).padStart(2, '0');
-          const minutes = String(shanghaiTime.getMinutes()).padStart(2, '0');
-          const seconds = String(shanghaiTime.getSeconds()).padStart(2, '0');
-          
-          const formattedTime = `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
-          
-          const formattedRow = {
-            ...row,
-            created_at: formattedTime,
-            type: 'file'
-          };
-          
-          // 只向对应的用户发送更新
-          io.to(`user_${req.user.id}`).emit('clipboard-update', formattedRow);
+      db.get('SELECT * FROM clipboard WHERE id = ?', [insertedId], (err, row) => {
+        if (err) {
+          console.error('[SOCKET] 查询新插入记录失败:', err);
+          return;
         }
+        if (!row) {
+          console.error('[SOCKET] 未找到新插入的记录, ID:', insertedId);
+          return;
+        }
+        
+        console.log('[SOCKET] 查询到新插入记录:', row);
+        
+        // 格式化时间
+        const utcDate = new Date(row.created_at);
+        // 转换为上海时区时间
+        const shanghaiTime = new Date(utcDate.getTime() + 8 * 60 * 60 * 1000);
+        
+        // 格式化为 "YYYY/MM/DD HH:mm:ss" 格式
+        const year = shanghaiTime.getFullYear();
+        const month = String(shanghaiTime.getMonth() + 1).padStart(2, '0');
+        const day = String(shanghaiTime.getDate()).padStart(2, '0');
+        const hours = String(shanghaiTime.getHours()).padStart(2, '0');
+        const minutes = String(shanghaiTime.getMinutes()).padStart(2, '0');
+        const seconds = String(shanghaiTime.getSeconds()).padStart(2, '0');
+        
+        const formattedTime = `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+        
+        const formattedRow = {
+          ...row,
+          created_at: formattedTime,
+          type: 'file'
+        };
+        
+        console.log('[SOCKET] 发送clipboard-update事件到房间user_' + req.user.id + ':', formattedRow);
+        // 只向对应的用户发送更新
+        io.to(`user_${req.user.id}`).emit('clipboard-update', formattedRow);
       });
+    } else {
+      console.warn('[SOCKET] Socket.IO实例不可用');
     }
     
     res.json({ 

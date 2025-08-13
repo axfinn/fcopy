@@ -1,5 +1,21 @@
 # 更新日志
 
+## [1.3.1] - 2025-08-13
+
+### 重构优化
+
+- **前端架构重构**：拆分大型组件，提升代码可维护性
+  - 创建 `composables/` 目录：提取 WebSocket、剪贴板操作、文件处理等可复用逻辑
+  - 拆分 `ClipboardHistoryImproved.vue` (1097行 → 355行)：分离表格视图、移动端列表、文件预览、编辑对话框
+  - 模块化 store：按功能域分割为 clipboard、user、ui、admin 模块
+  - 新增组件：`ClipboardTable.vue`、`ClipboardMobileList.vue`、`FilePreview.vue`、`EditDialog.vue`
+
+### 修复
+
+- 修复聊天框txt文件上传后无消息显示问题：增强Socket.IO事件发送和调试日志
+- 修复聊天框发消息不更新问题：纠正WebSocket事件监听器绑定逻辑
+- 完善剪切板文字编辑后复制功能：统一编辑对话框交互体验
+
 ## [1.3.0] - 2025-08-13
 
 ### 新增

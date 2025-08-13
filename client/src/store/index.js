@@ -1,154 +1,133 @@
 import { reactive, readonly } from 'vue';
 import api from '../services/api.js';
 import socket from '../services/socket.js';
+import { clipboard } from './modules/clipboard.js';
+import { user } from './modules/user.js';
+import { ui } from './modules/ui.js';
+import { admin } from './modules/admin.js';
+
+// 合并所有模块的state
+const initialState = {
+  ...clipboard.state,
+  ...user.state,
+  ...ui.state,
+  ...admin.state,
+  // 添加一些必需的兼容性字段
+  githubInfo: null
+};
 
 // 创建响应式状态
-const state = reactive({
-  isAuthenticated: false,
-  apiKey: null,
-  isAdmin: false,
-  username: null,
-  users: [],
-  activeUsers: [],
-  clipboardItems: [],
-  accessLogs: [],
-  githubInfo: null,
-  backgroundImages: [
-    'https://picsum.photos/1920/1080?random=1'
-  ],
-  currentBackground: '',
-  loading: {
-    activeUsers: false,
-    clipboard: false,
-    accessLogs: false,
-    users: false
-  },
-  // 分页相关状态
-  currentPage: 1,
-  pageSize: 10,
-  totalItems: 0,
-  searchKeyword: ''
-});
+const state = reactive(initialState);
 
 let clipboardUpdateListener = null;
 
-// 定义mutations（修改状态的方法）
+// 合并所有模块的mutations，绑定到正确的state
 const mutations = {
+  ...Object.keys(clipboard.mutations).reduce((acc, key) => {
+    acc[key] = (...args) => clipboard.mutations[key](state, ...args);
+    return acc;
+  }, {}),
+  ...Object.keys(user.mutations).reduce((acc, key) => {
+    acc[key] = (...args) => user.mutations[key](state, ...args);
+    return acc;
+  }, {}),
+  ...Object.keys(ui.mutations).reduce((acc, key) => {
+    acc[key] = (...args) => ui.mutations[key](state, ...args);
+    return acc;
+  }, {}),
+  ...Object.keys(admin.mutations).reduce((acc, key) => {
+    acc[key] = (...args) => admin.mutations[key](state, ...args);
+    return acc;
+  }, {}),
+  
+  // 兼容性方法 - 将旧的方法映射到新的模块方法
   SET_AUTHENTICATED(isAuthenticated) {
     state.isAuthenticated = isAuthenticated;
   },
-
+  
   SET_ADMIN(isAdmin) {
     state.isAdmin = isAdmin;
+    if (state.userInfo) {
+      state.userInfo = { ...state.userInfo, is_admin: isAdmin };
+    }
   },
-
+  
   SET_USERNAME(username) {
     state.username = username;
-  },
-
-  SET_API_KEY(apiKey) {
-    state.apiKey = apiKey;
-    api.setApiKey(apiKey);
-  },
-
-  SET_CLIPBOARD_ITEMS(items) {
-    state.clipboardItems = items;
-  },
-
-  ADD_CLIPBOARD_ITEM(item) {
-    console.log('添加剪贴板项目:', item);
-    // 确保项目有正确的格式
-    const formattedItem = {
-      id: item.id,
-      content: item.content || '',
-      file_path: item.file_path || null,
-      file_name: item.file_name || item.filename || null, // 兼容后端返回的filename字段
-      file_size: item.file_size || item.size || null, // 兼容后端返回的size字段
-      mime_type: item.mime_type || null,
-      user_id: item.user_id,
-  ip_address: item.ip_address || item.ip || null,
-  user_agent: item.user_agent || item.ua || null,
-      created_at: item.created_at || new Date().toISOString(),
-      // 添加type字段以匹配前端组件期望的格式
-      type: item.type || (item.content ? 'text' : 'file')
-    };
-    
-    // 检查项目是否已存在于列表中
-    const existingIndex = state.clipboardItems.findIndex(existingItem => existingItem.id === formattedItem.id);
-    
-    if (existingIndex === -1) {
-      // 只有当项目不存在时才添加到列表顶部
-      state.clipboardItems.unshift(formattedItem);
-      
-      // 保持最多显示100条记录
-      if (state.clipboardItems.length > 100) {
-        state.clipboardItems.splice(100);
-      }
-    } else {
-      // 如果项目已存在，更新它而不是添加新项目
-      state.clipboardItems[existingIndex] = formattedItem;
-      
-      // 将该项目移到列表顶部
-      const [updatedItem] = state.clipboardItems.splice(existingIndex, 1);
-      state.clipboardItems.unshift(updatedItem);
-    }
-    
-    console.log('更新后的剪贴板项目列表:', state.clipboardItems);
-  },
-  REMOVE_CLIPBOARD_ITEM(id) {
-    const idx = state.clipboardItems.findIndex(i => i.id === id);
-    if (idx !== -1) {
-      state.clipboardItems.splice(idx, 1);
+    if (state.userInfo) {
+      state.userInfo = { ...state.userInfo, username };
     }
   },
-
-  SET_ACCESS_LOGS(logs) {
-    state.accessLogs = logs;
-  },
-
-  SET_USERS(users) {
-    state.users = users;
-  },
-
-  SET_ACTIVE_USERS(activeUsers) {
-    state.activeUsers = activeUsers;
-  },
-
-  SET_GITHUB_INFO(githubInfo) {
-    state.githubInfo = githubInfo;
-  },
-
-  SET_TOTAL_ITEMS(total) {
-    state.totalItems = total;
-  },
-
+  
   SET_CURRENT_PAGE(page) {
-    state.currentPage = page;
+    if (state.pagination) {
+      state.pagination.currentPage = page;
+    }
   },
-
+  
   SET_PAGE_SIZE(size) {
-    state.pageSize = size;
+    if (state.pagination) {
+      state.pagination.pageSize = size;
+    }
   },
-
+  
+  SET_TOTAL_ITEMS(total) {
+    if (state.pagination) {
+      state.pagination.total = total;
+    }
+  },
+  
   SET_SEARCH_KEYWORD(keyword) {
-    state.searchKeyword = keyword;
-  },
-
-  SET_LOADING(type, loading) {
-    state.loading[type] = loading;
+    if (state.searchParams) {
+      state.searchParams.keyword = keyword;
+    }
   },
   
   initializeBackground() {
-    // 从本地存储获取背景图片设置
-    const savedBackground = localStorage.getItem('clipboard_background');
-    if (savedBackground) {
-      state.currentBackground = savedBackground;
-    } else {
-      // 默认使用第一张图片
-      state.currentBackground = state.backgroundImages[0];
+    ui.mutations.INIT_BACKGROUND(state);
+  },
+  
+  // 其他兼容性方法
+  SET_GITHUB_INFO(info) {
+    // 可以添加到admin模块或者直接设置
+    state.githubInfo = info;
+  },
+  
+  SET_LOADING(type, loading) {
+    if (state.loading && typeof state.loading === 'object') {
+      state.loading[type] = loading;
     }
+  },
+  
+  // 确保API密钥正确设置
+  SET_API_KEY(apiKey) {
+    state.apiKey = apiKey;
+    api.setApiKey(apiKey);
   }
 };
+
+// 添加兼容性getters
+Object.defineProperty(state, 'clipboardItems', {
+  get() { return this.items; }
+});
+Object.defineProperty(state, 'isAuthenticated', {
+  get() { return !!this.userInfo; }
+});
+Object.defineProperty(state, 'username', {
+  get() { return this.userInfo?.username; }
+});
+Object.defineProperty(state, 'currentPage', {
+  get() { return this.pagination.currentPage; }
+});
+Object.defineProperty(state, 'pageSize', {
+  get() { return this.pagination.pageSize; }
+});
+Object.defineProperty(state, 'totalItems', {
+  get() { return this.pagination.total; }
+});
+Object.defineProperty(state, 'searchKeyword', {
+  get() { return this.searchParams.keyword; }
+});
 
 // 创建store实例
 const store = {

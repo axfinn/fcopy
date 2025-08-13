@@ -150,7 +150,8 @@
 import { defineComponent } from 'vue';
 import store from './store';
 import api from './services/api.js';
-import socket from './services/socket.js';
+import { useSocket } from './composables/useSocket.js';
+import { useClipboard } from './composables/useClipboard.js';
 import LoginView from './components/LoginView.vue';
 import MainView from './components/MainView.vue';
 import Footer from './components/Footer.vue';
@@ -163,6 +164,15 @@ export default defineComponent({
     MainView,
     Footer,
     AppHeader
+  },
+  setup() {
+    const socketService = useSocket();
+    const clipboardService = useClipboard();
+    
+    return {
+      socketService,
+      clipboardService
+    };
   },
   data() {
     return {
@@ -219,40 +229,7 @@ export default defineComponent({
     // 初始化WebSocket连接
     initWebSocket() {
       if (!store.state.apiKey) return;
-      
-      // 如果已有连接，先关闭旧连接
-      socket.disconnect();
-      
-      // 使用socket服务连接
-      socket.connect(store.state.apiKey);
-      
-      // 监听剪贴板更新事件
-      socket.on('clipboard-update', (data) => {
-        try {
-          console.log('收到WebSocket消息:', data);
-          // 将新内容添加到列表顶部
-          store.mutations.ADD_CLIPBOARD_ITEM(data);
-          if (window.$message) {
-            window.$message.success('收到新内容');
-          }
-        } catch (error) {
-          console.error('处理WebSocket消息时出错:', error);
-        }
-      });
-      // 监听剪贴板删除事件
-      socket.on('clipboard-delete', (data) => {
-        try {
-          if (!data || typeof data.id === 'undefined') return;
-          store.mutations.REMOVE_CLIPBOARD_ITEM(data.id);
-        } catch (e) {
-          console.error('处理删除事件出错:', e);
-        }
-      });
-      
-      // 监听用户更新事件
-      socket.on('user-update', (data) => {
-        store.mutations.SET_ACTIVE_USERS(data);
-      });
+      this.socketService.initWebSocket(store.state.apiKey);
     },
     
     // 处理用户认证
