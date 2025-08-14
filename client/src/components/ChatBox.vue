@@ -446,6 +446,7 @@ export default {
   height: calc(100vh - 200px);
   display: flex;
   flex-direction: column;
+  min-height: 500px;
 }
 
 .chat-card :deep(.el-card__body) {
@@ -453,6 +454,7 @@ export default {
   display: flex;
   flex-direction: column;
   padding: 0;
+  height: 100%;
 }
 
 .chat-header {
@@ -627,6 +629,11 @@ export default {
   border-top: 1px solid #eee;
   padding: 16px;
   background: #fff;
+  flex-shrink: 0;
+  min-height: 80px;
+  /* 调试样式 - 确保可见性 */
+  border: 2px solid #409EFF;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .sending-indicator {
@@ -646,6 +653,12 @@ export default {
 
 .input-wrapper :deep(.el-textarea) {
   flex: 1;
+  min-height: 60px;
+}
+
+.input-wrapper :deep(.el-textarea__inner) {
+  min-height: 60px !important;
+  resize: none;
 }
 
 .input-buttons {
