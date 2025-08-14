@@ -27,6 +27,7 @@
               :api-key="apiKey"
               :clipboard-items="clipboardItems"
               @download-file="handleDownloadFile"
+              @clear-messages="handleClearMessages"
             />
           </el-col>
         </el-row>
@@ -136,6 +137,11 @@ export default {
     
     handleDownloadFile(message) {
       this.$emit('download-file', message.id, message.file_name, message.mime_type);
+    },
+    
+    // 处理清空聊天消息
+    handleClearMessages() {
+      this.$emit('clear-messages');
     }
   },
   watch: {
@@ -153,7 +159,7 @@ export default {
       immediate: true // 立即执行一次，确保初始加载时也能获取数据
     }
   },
-  emits: ['page-change', 'size-change', 'search', 'delete-item', 'preview-text-file', 'copy-to-clipboard', 'add-user', 'delete-user', 'update-user-apikey', 'tab-change', 'fetch-active-users', 'fetch-admin-data', 'download-file', 'update-clipboard-items']
+  emits: ['page-change', 'size-change', 'search', 'delete-item', 'preview-text-file', 'copy-to-clipboard', 'add-user', 'delete-user', 'update-user-apikey', 'tab-change', 'fetch-active-users', 'fetch-admin-data', 'download-file', 'update-clipboard-items', 'clear-messages']
 };
 </script>
 

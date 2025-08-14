@@ -55,6 +55,7 @@
             @size-change="handleSizeChange"
             @search="handleSearch"
             @page-change="handlePageChange"
+            @clear-messages="handleClearMessages"
             ref="mainView"
           />
         </el-main>
@@ -719,6 +720,29 @@ export default defineComponent({
     // 处理页面变化
     handlePageChange(page) {
       this.handleCurrentChange(page);
+    },
+
+    // 处理清空聊天消息
+    async handleClearMessages() {
+      try {
+        // 清空store中的所有剪切板项目（包括聊天消息）
+        store.mutations.SET_CLIPBOARD_ITEMS([]);
+        
+        // 可选：调用API清空服务端数据
+        // const response = await api.clearAllItems();
+        // if (!response.success) {
+        //   throw new Error(response.error || '清空失败');
+        // }
+        
+        if (window.$message) {
+          window.$message.success('聊天记录已清空');
+        }
+      } catch (error) {
+        console.error('清空聊天记录失败:', error);
+        if (window.$message) {
+          window.$message.error('清空失败: ' + error.message);
+        }
+      }
     },
 
     // 处理管理员面板数据获取

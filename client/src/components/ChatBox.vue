@@ -18,7 +18,7 @@
           <p>还没有消息，开始聊天吧！</p>
         </div>
 
-        <div v-for="message in messages" :key="message.id" class="message-item">
+        <div v-for="message in messages" :key="`chat-${message.id}`" class="message-item">
           <div class="message-wrapper" :class="{ 'own-message': isOwnMessage(message) }">
             <div class="message-avatar">
               <div class="avatar-circle" :style="getAvatarStyle(message)">
@@ -145,7 +145,6 @@ export default {
   },
   data() {
     return {
-      messages: [], // 聊天消息列表
       messageInput: '', // 输入框内容
       isSending: false, // 是否正在发送
       isAtBottom: true, // 是否在底部
@@ -154,12 +153,38 @@ export default {
     };
   },
   computed: {
+    // 从clipboardItems中提取聊天消息，完全依赖props
+    messages() {
+      if (!Array.isArray(this.clipboardItems)) {
+        return [];
+      }
+      
+      // 过滤并格式化聊天消息（所有类型的消息都显示）
+      const chatMessages = this.clipboardItems
+        .map(item => ({
+          ...item,
+          type: item.content ? 'text' : 'file'
+        }))
+        .sort((a, b) => {
+          // 按created_at时间排序，最新的在底部
+          const timeA = new Date(a.created_at).getTime();
+          const timeB = new Date(b.created_at).getTime();
+          return timeA - timeB;
+        })
+        .slice(-50); // 只显示最近50条消息，避免界面卡顿
+        
+      console.log('[CHAT] 计算属性messages更新，消息数量:', chatMessages.length, '（显示最近50条）');
+      return chatMessages;
+    },
+    
     hasNewMessages() {
       return !this.isAtBottom && this.newMessageCount > 0;
     },
+    
     fileUploadUrl() {
       return '/api/clipboard/file';
     },
+    
     uploadHeaders() {
       return {
         'X-API-Key': this.apiKey
@@ -174,84 +199,34 @@ export default {
     this.removeWebSocketListener();
   },
   watch: {
-    // 监听clipboardItems变化，与ClipboardHistoryImproved保持一致
-    clipboardItems: {
-      handler(newItems) {
-        if (Array.isArray(newItems)) {
-          console.log('[CHAT] 通过props收到新的clipboardItems:', newItems.length);
-          
-          // 将新的items与现有messages合并，按时间排序
-          newItems.forEach(item => {
-            const existingMessage = this.messages.find(msg => msg.id === item.id);
-            if (!existingMessage) {
-              console.log('[CHAT] 通过props添加新消息:', item);
-              const newMessage = {
-                ...item,
-                type: item.content ? 'text' : 'file'
-              };
-              
-              // 按时间顺序插入消息
-              const messageTime = new Date(newMessage.created_at).getTime();
-              let insertIndex = this.messages.length;
-              
-              for (let i = this.messages.length - 1; i >= 0; i--) {
-                const existingTime = new Date(this.messages[i].created_at).getTime();
-                if (existingTime <= messageTime) {
-                  insertIndex = i + 1;
-                  break;
-                }
-                insertIndex = i;
-              }
-              
-              this.messages.splice(insertIndex, 0, newMessage);
-              
-              // 处理滚动
-              if (this.isAtBottom) {
-                this.$nextTick(() => {
-                  this.scrollToBottom();
-                });
-              } else {
-                this.newMessageCount++;
-              }
-            }
-          });
+    // 监听messages计算属性的变化，实现自动滚动
+    messages: {
+      handler(newMessages, oldMessages) {
+        console.log('[CHAT] messages变化:', {
+          新消息数量: newMessages.length,
+          旧消息数量: oldMessages?.length || 0
+        });
+        
+        // 如果有新消息且用户在底部，自动滚动
+        if (newMessages.length > (oldMessages?.length || 0)) {
+          if (this.isAtBottom) {
+            this.$nextTick(() => {
+              this.scrollToBottom();
+            });
+          } else {
+            this.newMessageCount++;
+          }
         }
       },
-      deep: true,
       immediate: true
     }
   },
   methods: {
     // 初始化聊天框
     async initializeChat() {
-      console.log('[CHAT] 初始化聊天框');
-      // 不再单独加载消息，使用props中的clipboardItems
-      if (this.clipboardItems && this.clipboardItems.length > 0) {
-        this.initializeFromProps();
-      }
+      console.log('[CHAT] 初始化聊天框 - 完全基于计算属性，无需手动加载消息');
+      // messages由计算属性自动处理，这里只需要设置UI状态
       this.scrollToBottom();
-    },
-
-    // 从props初始化消息
-    initializeFromProps() {
-      console.log('[CHAT] 从props初始化消息，总数:', this.clipboardItems.length);
-      
-      // 取最近的消息（限制数量避免界面卡顿）
-      const recentItems = this.clipboardItems.slice(0, 20);
-      
-      this.messages = recentItems
-        .map(item => ({
-          ...item,
-          type: item.content ? 'text' : 'file'
-        }))
-        .sort((a, b) => {
-          // 按created_at时间排序
-          const timeA = new Date(a.created_at).getTime();
-          const timeB = new Date(b.created_at).getTime();
-          return timeA - timeB;
-        });
-        
-      console.log('[CHAT] 初始化了', this.messages.length, '条消息');
     },
 
     // 设置WebSocket监听器 - 现在主要通过props获取数据，WebSocket只做删除监听
@@ -310,17 +285,9 @@ export default {
         }
 
         const result = await response.json();
-        console.log('[CHAT] 消息发送成功，等待WebSocket广播:', result);
+        console.log('[CHAT] 消息发送成功，WebSocket会自动更新Store:', result);
         
-        // 消息发送成功，等待WebSocket广播
-        // 如果5秒内没收到广播，提示用户刷新页面
-        setTimeout(() => {
-          const hasMessage = this.messages.find(msg => msg.id === result.id);
-          if (!hasMessage) {
-            console.warn('[CHAT] 5秒内未收到WebSocket广播，可能需要刷新页面');
-            this.$message.warning('消息发送成功，但未能及时显示，请刷新页面查看');
-          }
-        }, 5000);
+        // 消息发送成功，Store会通过WebSocket自动更新，无需手动处理
 
       } catch (error) {
         console.error('[CHAT] 发送消息失败:', error);
@@ -335,9 +302,9 @@ export default {
 
     // 处理文件上传成功
     handleFileUploadSuccess(result) {
-      console.log('[CHAT] 文件上传成功:', result);
-      // 文件上传成功，等待WebSocket广播
-      // 不在这里立即添加消息，等待WebSocket事件
+      console.log('[CHAT] 文件上传成功，WebSocket会自动更新Store:', result);
+      // Store会通过WebSocket自动更新，无需手动处理
+      this.$message.success('文件上传成功');
     },
 
     // 处理文件上传失败
@@ -388,9 +355,10 @@ export default {
         cancelButtonText: '取消',
         type: 'warning'
       }).then(() => {
-        this.messages = [];
+        // 发出事件给父组件处理，因为需要清空Store数据
+        this.$emit('clear-messages');
         this.newMessageCount = 0;
-        this.$message.success('聊天记录已清空');
+        this.$message.success('正在清空聊天记录...');
       }).catch(() => {});
     },
 
