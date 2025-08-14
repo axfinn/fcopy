@@ -199,20 +199,17 @@ export default {
     this.removeWebSocketListener();
   },
   watch: {
-    // 简化：只监听messages计算属性的长度变化，避免复杂的深度监听
-    'messages.length': {
-      handler(newLength, oldLength) {
-        console.log('[CHAT] 消息数量变化:', oldLength, '->', newLength);
-        
-        // 如果有新消息且用户在底部，自动滚动
-        if (newLength > oldLength && this.isAtBottom) {
-          this.$nextTick(() => {
-            this.scrollToBottom();
-          });
-        } else if (newLength > oldLength) {
-          this.newMessageCount++;
-        }
-      }
+    // 最简化的监听，避免Vue响应式错误
+    clipboardItems: {
+      handler() {
+        // 简单的响应，避免复杂的DOM操作
+        this.$nextTick(() => {
+          if (this.isAtBottom && this.$refs.messageContainer) {
+            this.$refs.messageContainer.scrollTop = this.$refs.messageContainer.scrollHeight;
+          }
+        });
+      },
+      immediate: true
     }
   },
   methods: {
@@ -289,14 +286,7 @@ export default {
         this.$message.success('消息发送成功！', { duration: 1000 });
         
         // 消息发送成功，Store会通过WebSocket自动更新，无需手动处理
-        // 如果3秒内没有看到消息，提示用户
-        setTimeout(() => {
-          const hasMessage = this.messages.find(msg => msg.id === result.id);
-          if (!hasMessage) {
-            console.warn('[CHAT] 3秒内未收到WebSocket更新');
-            this.$message.warning('消息已发送，正在同步...', { duration: 2000 });
-          }
-        }, 3000);
+        // 移除定时器避免组件销毁时的引用错误
 
       } catch (error) {
         console.error('[CHAT] 发送消息失败:', error);
@@ -330,31 +320,44 @@ export default {
       }
     },
 
-    // 处理滚动
+    // 处理滚动 - 添加安全检查
     handleScroll() {
-      const container = this.$refs.messageContainer;
-      if (!container) return;
+      try {
+        const container = this.$refs.messageContainer;
+        if (!container || !container.getBoundingClientRect) return;
 
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
-      
-      this.isAtBottom = isAtBottom;
-      
-      if (isAtBottom) {
-        this.newMessageCount = 0;
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        if (typeof scrollTop !== 'number' || typeof scrollHeight !== 'number' || typeof clientHeight !== 'number') {
+          return;
+        }
+        
+        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+        this.isAtBottom = isAtBottom;
+        
+        if (isAtBottom) {
+          this.newMessageCount = 0;
+        }
+      } catch (error) {
+        console.warn('[CHAT] 处理滚动事件时出错:', error);
+        // 忽略滚动错误，不影响核心功能
       }
     },
 
-    // 滚动到底部
+    // 滚动到底部 - 添加安全检查避免Vue错误
     scrollToBottom() {
-      this.$nextTick(() => {
-        const container = this.$refs.messageContainer;
-        if (container) {
-          container.scrollTop = container.scrollHeight;
-          this.isAtBottom = true;
-          this.newMessageCount = 0;
-        }
-      });
+      try {
+        this.$nextTick(() => {
+          const container = this.$refs.messageContainer;
+          if (container && typeof container.scrollTop !== 'undefined' && typeof container.scrollHeight !== 'undefined') {
+            container.scrollTop = container.scrollHeight;
+            this.isAtBottom = true;
+            this.newMessageCount = 0;
+          }
+        });
+      } catch (error) {
+        console.warn('[CHAT] 滚动到底部时出错:', error);
+        // 忽略滚动错误，不影响核心功能
+      }
     },
 
     // 清空消息
@@ -640,9 +643,6 @@ export default {
   background: #fff;
   flex-shrink: 0;
   min-height: 80px;
-  /* 调试样式 - 确保可见性 */
-  border: 2px solid #409EFF;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .sending-indicator {
