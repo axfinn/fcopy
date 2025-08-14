@@ -199,26 +199,20 @@ export default {
     this.removeWebSocketListener();
   },
   watch: {
-    // 监听messages计算属性的变化，实现自动滚动
-    messages: {
-      handler(newMessages, oldMessages) {
-        console.log('[CHAT] messages变化:', {
-          新消息数量: newMessages.length,
-          旧消息数量: oldMessages?.length || 0
-        });
+    // 简化：只监听messages计算属性的长度变化，避免复杂的深度监听
+    'messages.length': {
+      handler(newLength, oldLength) {
+        console.log('[CHAT] 消息数量变化:', oldLength, '->', newLength);
         
         // 如果有新消息且用户在底部，自动滚动
-        if (newMessages.length > (oldMessages?.length || 0)) {
-          if (this.isAtBottom) {
-            this.$nextTick(() => {
-              this.scrollToBottom();
-            });
-          } else {
-            this.newMessageCount++;
-          }
+        if (newLength > oldLength && this.isAtBottom) {
+          this.$nextTick(() => {
+            this.scrollToBottom();
+          });
+        } else if (newLength > oldLength) {
+          this.newMessageCount++;
         }
-      },
-      immediate: true
+      }
     }
   },
   methods: {
@@ -271,6 +265,10 @@ export default {
 
       try {
         console.log('[CHAT] 发送文本消息:', content);
+        
+        // 立即显示发送状态提示
+        this.$message.info('正在发送消息...', { duration: 1000 });
+        
         const response = await fetch('/api/clipboard/text', {
           method: 'POST',
           headers: {
@@ -285,9 +283,20 @@ export default {
         }
 
         const result = await response.json();
-        console.log('[CHAT] 消息发送成功，WebSocket会自动更新Store:', result);
+        console.log('[CHAT] 消息发送成功，等待WebSocket广播更新界面:', result);
+        
+        // 发送成功提示
+        this.$message.success('消息发送成功！', { duration: 1000 });
         
         // 消息发送成功，Store会通过WebSocket自动更新，无需手动处理
+        // 如果3秒内没有看到消息，提示用户
+        setTimeout(() => {
+          const hasMessage = this.messages.find(msg => msg.id === result.id);
+          if (!hasMessage) {
+            console.warn('[CHAT] 3秒内未收到WebSocket更新');
+            this.$message.warning('消息已发送，正在同步...', { duration: 2000 });
+          }
+        }, 3000);
 
       } catch (error) {
         console.error('[CHAT] 发送消息失败:', error);
