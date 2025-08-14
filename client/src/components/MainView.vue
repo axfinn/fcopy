@@ -25,6 +25,7 @@
           <el-col :span="24">
             <ChatBox 
               :api-key="apiKey"
+              :clipboard-items="clipboardItems"
               @download-file="handleDownloadFile"
             />
           </el-col>

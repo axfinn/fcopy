@@ -137,6 +137,10 @@ export default {
     apiKey: {
       type: String,
       required: true
+    },
+    clipboardItems: {
+      type: Array,
+      default: () => []
     }
   },
   data() {
@@ -169,134 +173,100 @@ export default {
   beforeUnmount() {
     this.removeWebSocketListener();
   },
+  watch: {
+    // 监听clipboardItems变化，与ClipboardHistoryImproved保持一致
+    clipboardItems: {
+      handler(newItems) {
+        if (Array.isArray(newItems)) {
+          console.log('[CHAT] 通过props收到新的clipboardItems:', newItems.length);
+          
+          // 将新的items与现有messages合并，按时间排序
+          newItems.forEach(item => {
+            const existingMessage = this.messages.find(msg => msg.id === item.id);
+            if (!existingMessage) {
+              console.log('[CHAT] 通过props添加新消息:', item);
+              const newMessage = {
+                ...item,
+                type: item.content ? 'text' : 'file'
+              };
+              
+              // 按时间顺序插入消息
+              const messageTime = new Date(newMessage.created_at).getTime();
+              let insertIndex = this.messages.length;
+              
+              for (let i = this.messages.length - 1; i >= 0; i--) {
+                const existingTime = new Date(this.messages[i].created_at).getTime();
+                if (existingTime <= messageTime) {
+                  insertIndex = i + 1;
+                  break;
+                }
+                insertIndex = i;
+              }
+              
+              this.messages.splice(insertIndex, 0, newMessage);
+              
+              // 处理滚动
+              if (this.isAtBottom) {
+                this.$nextTick(() => {
+                  this.scrollToBottom();
+                });
+              } else {
+                this.newMessageCount++;
+              }
+            }
+          });
+        }
+      },
+      deep: true,
+      immediate: false
+    }
+  },
   methods: {
     // 初始化聊天框
     async initializeChat() {
       console.log('[CHAT] 初始化聊天框');
-      await this.loadRecentMessages();
+      // 不再单独加载消息，使用props中的clipboardItems
+      if (this.clipboardItems && this.clipboardItems.length > 0) {
+        this.initializeFromProps();
+      }
       this.scrollToBottom();
     },
 
-    // 加载最近5条消息
-    async loadRecentMessages() {
-      try {
-        console.log('[CHAT] 加载最近5条消息');
-        const response = await fetch('/api/clipboard?page=1&size=5', {
-          headers: {
-            'X-API-Key': this.apiKey
-          }
+    // 从props初始化消息
+    initializeFromProps() {
+      console.log('[CHAT] 从props初始化消息，总数:', this.clipboardItems.length);
+      
+      // 取最近的消息（限制数量避免界面卡顿）
+      const recentItems = this.clipboardItems.slice(0, 20);
+      
+      this.messages = recentItems
+        .map(item => ({
+          ...item,
+          type: item.content ? 'text' : 'file'
+        }))
+        .sort((a, b) => {
+          // 按created_at时间排序
+          const timeA = new Date(a.created_at).getTime();
+          const timeB = new Date(b.created_at).getTime();
+          return timeA - timeB;
         });
-
-        if (!response.ok) {
-          throw new Error('加载消息失败');
-        }
-
-        const result = await response.json();
-        if (result.success && result.data) {
-          // 加载历史消息并按时间排序（最新的在后面）
-          this.messages = result.data
-            .map(item => ({
-              ...item,
-              type: item.content ? 'text' : 'file'
-            }))
-            .sort((a, b) => {
-              // 按created_at时间排序
-              const timeA = new Date(a.created_at).getTime();
-              const timeB = new Date(b.created_at).getTime();
-              return timeA - timeB;
-            });
-          console.log('[CHAT] 加载了', this.messages.length, '条历史消息，已按时间排序');
-        }
-      } catch (error) {
-        console.error('[CHAT] 加载历史消息失败:', error);
-        this.$message.error('加载历史消息失败');
-      }
+        
+      console.log('[CHAT] 初始化了', this.messages.length, '条消息');
     },
 
-    // 设置WebSocket监听器
+    // 设置WebSocket监听器 - 现在主要通过props获取数据，WebSocket只做删除监听
     setupWebSocketListener() {
-      console.log('[CHAT] 设置WebSocket监听器');
-      console.log('[CHAT] window对象:', typeof window);
-      console.log('[CHAT] addEventListener方法:', typeof window.addEventListener);
+      console.log('[CHAT] 设置WebSocket监听器（仅删除事件）');
       
-      // 测试事件监听器是否正常工作
-      const testHandler = (event) => {
-        console.log('[CHAT] 收到测试事件:', event.detail);
-      };
-      window.addEventListener('test-event', testHandler);
-      
-      // 立即触发一个测试事件来验证机制是否工作
-      setTimeout(() => {
-        console.log('[CHAT] 发送测试事件');
-        window.dispatchEvent(new CustomEvent('test-event', { detail: 'test data' }));
-      }, 1000);
-      
-      // 绑定事件监听器 - 确保this上下文正确
-      this._boundHandleWebSocketMessage = this.handleWebSocketMessage.bind(this);
       this._boundHandleWebSocketDelete = this.handleWebSocketDelete.bind(this);
-      
-      window.addEventListener('clipboard-websocket-update', this._boundHandleWebSocketMessage);
       window.addEventListener('clipboard-websocket-delete', this._boundHandleWebSocketDelete);
-      
-      console.log('[CHAT] 事件监听器已绑定，函数类型:', typeof this._boundHandleWebSocketMessage);
     },
 
     // 移除WebSocket监听器
     removeWebSocketListener() {
       console.log('[CHAT] 移除WebSocket监听器');
-      if (this._boundHandleWebSocketMessage) {
-        window.removeEventListener('clipboard-websocket-update', this._boundHandleWebSocketMessage);
-      }
       if (this._boundHandleWebSocketDelete) {
         window.removeEventListener('clipboard-websocket-delete', this._boundHandleWebSocketDelete);
-      }
-    },
-
-    // 处理WebSocket消息
-    handleWebSocketMessage(event) {
-      const messageData = event.detail;
-      console.log('[CHAT] *** 成功收到WebSocket消息! ***', messageData);
-      console.log('[CHAT] 事件类型:', event.type);
-      console.log('[CHAT] 事件详情:', event.detail);
-      console.log('[CHAT] 当前消息数量:', this.messages.length);
-
-      // 检查是否已经存在这条消息
-      const existingMessage = this.messages.find(msg => msg.id === messageData.id);
-      if (existingMessage) {
-        console.log('[CHAT] 消息已存在，跳过:', messageData.id);
-        return;
-      }
-
-      // 添加新消息
-      const newMessage = {
-        ...messageData,
-        type: messageData.content ? 'text' : 'file'
-      };
-
-      // 按时间顺序插入消息
-      const messageTime = new Date(newMessage.created_at).getTime();
-      let insertIndex = this.messages.length;
-      
-      // 找到正确的插入位置
-      for (let i = this.messages.length - 1; i >= 0; i--) {
-        const existingTime = new Date(this.messages[i].created_at).getTime();
-        if (existingTime <= messageTime) {
-          insertIndex = i + 1;
-          break;
-        }
-        insertIndex = i;
-      }
-      
-      this.messages.splice(insertIndex, 0, newMessage);
-      console.log('[CHAT] 添加新消息到位置', insertIndex, ':', newMessage);
-
-      // 处理滚动
-      if (this.isAtBottom) {
-        this.$nextTick(() => {
-          this.scrollToBottom();
-        });
-      } else {
-        this.newMessageCount++;
       }
     },
 

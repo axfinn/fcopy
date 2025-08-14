@@ -2,13 +2,23 @@
 
 ## [1.3.10] - 2025-08-14
 
-### 正在调试聊天框WebSocket事件问题
+### 🎯 彻底修复聊天框无法接收消息问题
 
-- **调查ChatBox无法接收WebSocket事件**：尽管剪贴板可以实时同步，聊天框收不到消息
-  - **增加详细调试日志**：useSocket事件派发、ChatBox事件监听、MessageDeduplicator过滤
-  - **测试事件机制**：添加test-event验证自定义事件派发是否正常工作
-  - **分析消息去重逻辑**：检查MessageDeduplicator是否错误过滤消息
-  - **验证事件链**：useSocket → window.dispatchEvent → ChatBox.addEventListener
+- **根本问题发现**：数据流不一致导致的同步问题
+  - **剪切板能同步**：ClipboardHistoryImproved通过props接收store.state.items
+  - **聊天框收不到**：ChatBox试图监听WebSocket自定义事件，但事件链断裂
+  - **解决方案**：统一ChatBox与ClipboardHistoryImproved的数据获取方式
+
+- **架构统一**：ChatBox改用props接收clipboardItems
+  - **添加clipboardItems prop**：与ClipboardHistoryImproved保持一致的数据流
+  - **watch监听器**：实时响应store数据变化，自动同步新消息
+  - **简化WebSocket监听**：只保留删除事件监听，新增消息通过props获取
+  - **优化初始化逻辑**：从props初始化消息，无需单独API调用
+
+- **数据流优化**：WebSocket → useSocket → store → props → ChatBox
+  - **统一更新机制**：所有组件都通过store状态变化获取新数据
+  - **时间排序保持**：新消息按时间戳正确插入到消息列表
+  - **滚动行为优化**：新消息到达时自动滚动或显示提示
 
 ### 修复聊天框关键问题
 
