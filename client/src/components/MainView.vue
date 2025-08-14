@@ -25,11 +25,7 @@
           <el-col :span="24">
             <ChatBox 
               :api-key="apiKey"
-              @message-sent="handleMessageSent"
-              @file-uploaded="handleFileUploaded"
-              @preview-text="$emit('preview-text-file', $event)"
               @download-file="handleDownloadFile"
-              ref="chatBox"
             />
           </el-col>
         </el-row>
@@ -136,23 +132,9 @@ export default {
       this.$emit('fetch-admin-data');
     },
     
-    handleMessageSent(result) {
-      this.$emit('add-text-content', result.content);
-    },
-    
-    handleFileUploaded(result) {
-      this.$emit('file-success', result);
-    },
     
     handleDownloadFile(message) {
       this.$emit('download-file', message.id, message.file_name, message.mime_type);
-    },
-    
-    // 从外部添加消息到聊天框（WebSocket等）
-    addMessageToChat(message) {
-      if (this.$refs.chatBox) {
-        this.$refs.chatBox.addMessage(message);
-      }
     }
   },
   watch: {
@@ -170,7 +152,7 @@ export default {
       immediate: true // 立即执行一次，确保初始加载时也能获取数据
     }
   },
-  emits: ['page-change', 'size-change', 'search', 'delete-item', 'preview-text', 'preview-file', 'copy-to-clipboard', 'add-user', 'delete-user', 'update-user-apikey', 'tab-change', 'fetch-active-users', 'fetch-admin-data']
+  emits: ['page-change', 'size-change', 'search', 'delete-item', 'preview-text-file', 'copy-to-clipboard', 'add-user', 'delete-user', 'update-user-apikey', 'tab-change', 'fetch-active-users', 'fetch-admin-data', 'download-file', 'update-clipboard-items']
 };
 </script>
 

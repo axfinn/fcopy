@@ -1,120 +1,108 @@
 <template>
-  <div class="chat-wrapper">
+  <div class="chat-container">
     <el-card class="chat-card">
       <template #header>
-        <div class="card-header">
+        <div class="chat-header">
           <span>实时聊天</span>
           <div class="header-actions">
             <el-button size="small" type="primary" plain @click="scrollToBottom">到底部</el-button>
-            <el-button size="small" @click="clearChat" :disabled="messages.length === 0">清空</el-button>
+            <el-button size="small" @click="clearMessages">清空</el-button>
           </div>
         </div>
       </template>
-      
+
       <!-- 消息列表 -->
-      <div ref="messageList" class="message-list" @scroll.passive="handleScroll">
-        <div v-if="messages.length === 0" class="empty">
-          <el-icon><ChatDotRound /></el-icon>
-          <p>开始聊天吧！支持文本和文件</p>
+      <div ref="messageContainer" class="message-container" @scroll="handleScroll">
+        <div v-if="messages.length === 0" class="empty-state">
+          <el-icon size="48px"><ChatDotRound /></el-icon>
+          <p>还没有消息，开始聊天吧！</p>
         </div>
-        
-        <div v-for="message in messages" :key="message.id" class="message-item" :class="message.side">
-          <div class="avatar" :style="getAvatarStyle(message)">
-            {{ getAvatarText(message) }}
-          </div>
-          <div class="message-content">
-            <div class="message-meta">
-              <span class="time">{{ formatTime(message.created_at) }}</span>
-              <span class="type-tag" :class="message.type">{{ message.type === 'text' ? '文本' : '文件' }}</span>
+
+        <div v-for="message in messages" :key="message.id" class="message-item">
+          <div class="message-wrapper" :class="{ 'own-message': isOwnMessage(message) }">
+            <div class="message-avatar">
+              <div class="avatar-circle" :style="getAvatarStyle(message)">
+                {{ getAvatarText(message) }}
+              </div>
             </div>
-            <div class="message-bubble" :class="[message.type, message.side, message.status]">
-              <!-- 文本消息 -->
-              <template v-if="message.type === 'text'">
-                <div class="text-content" @click="copyText(message.content)">
-                  {{ message.content }}
-                </div>
-                <div class="message-actions">
+            <div class="message-content">
+              <div class="message-header">
+                <span class="message-time">{{ formatTime(message.created_at) }}</span>
+                <span class="message-type">{{ message.type === 'text' ? '文本' : '文件' }}</span>
+              </div>
+              <div class="message-bubble">
+                <!-- 文本消息 -->
+                <div v-if="message.type === 'text'" class="text-message">
+                  <div class="text-content">{{ message.content }}</div>
                   <el-button size="small" text @click="copyText(message.content)">
                     <el-icon><DocumentCopy /></el-icon>
                     复制
                   </el-button>
                 </div>
-              </template>
-              
-              <!-- 文件消息 -->
-              <template v-else-if="message.type === 'file'">
-                <div class="file-content">
-                  <div v-if="isImage(message)" class="image-preview" @click="previewImage(message)">
-                    <img v-if="message.thumbnailUrl" :src="message.thumbnailUrl" :alt="message.file_name" />
-                    <div v-else class="image-placeholder">
-                      <el-icon><Picture /></el-icon>
-                      <span>{{ message.file_name }}</span>
-                    </div>
-                  </div>
-                  <div v-else class="file-info">
+                
+                <!-- 文件消息 -->
+                <div v-else class="file-message">
+                  <div class="file-info">
                     <el-icon><Document /></el-icon>
                     <div class="file-details">
                       <div class="file-name">{{ message.file_name }}</div>
-                      <div class="file-size">{{ formatSize(message.file_size) }}</div>
+                      <div class="file-size">{{ formatFileSize(message.file_size) }}</div>
                     </div>
                   </div>
-                  <div class="message-actions">
+                  <div class="file-actions">
                     <el-button size="small" text @click="downloadFile(message)">
                       <el-icon><Download /></el-icon>
                       下载
                     </el-button>
-                    <el-button v-if="isTextFile(message)" size="small" text @click="previewText(message)">
-                      <el-icon><View /></el-icon>
-                      预览
-                    </el-button>
                   </div>
                 </div>
-              </template>
-              
-              <!-- 发送状态简化显示 -->
-              <div v-if="sending && message === messages[messages.length - 1]" class="status-indicator">
-                <el-icon class="is-loading"><Loading /></el-icon>
-                <span>发送中...</span>
               </div>
             </div>
           </div>
         </div>
-        
+
         <!-- 新消息提示 -->
-        <div v-if="showNewMessageTip" class="new-message-tip" @click="scrollToBottom">
+        <div v-if="hasNewMessages" class="new-message-indicator" @click="scrollToBottom">
           有新消息 ({{ newMessageCount }})
         </div>
       </div>
-      
+
       <!-- 输入区域 -->
       <div class="input-area">
+        <div v-if="isSending" class="sending-indicator">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          <span>发送中...</span>
+        </div>
+        
         <div class="input-wrapper">
           <el-input
-            v-model="inputText"
+            v-model="messageInput"
             type="textarea"
-            :autosize="{ minRows: 1, maxRows: 4 }"
-            placeholder="输入消息，Ctrl+Enter 发送，支持粘贴文件"
-            @keydown="handleKeydown"
-            @paste="handlePaste"
-            class="message-input"
+            :rows="2"
+            placeholder="输入消息内容，Ctrl+Enter 发送"
+            @keydown="handleKeyPress"
+            :disabled="isSending"
           />
-          <div class="input-actions">
+          <div class="input-buttons">
             <el-upload
-              :action="uploadUrl"
+              :action="fileUploadUrl"
               :headers="uploadHeaders"
               :show-file-list="false"
-              :on-success="handleFileSuccess"
-              :on-error="handleFileError"
-              multiple
+              :on-success="handleFileUploadSuccess"
+              :on-error="handleFileUploadError"
+              :disabled="isSending"
             >
-              <el-button size="small" :icon="Paperclip">文件</el-button>
+              <el-button size="small" :disabled="isSending">
+                <el-icon><Paperclip /></el-icon>
+                文件
+              </el-button>
             </el-upload>
-            <el-button
-              type="primary"
-              size="small"
-              :disabled="!inputText.trim() || sending"
-              :loading="sending"
-              @click="sendMessage"
+            <el-button 
+              type="primary" 
+              size="small" 
+              @click="sendTextMessage"
+              :disabled="!messageInput.trim() || isSending"
+              :loading="isSending"
             >
               发送
             </el-button>
@@ -122,17 +110,6 @@
         </div>
       </div>
     </el-card>
-    
-    <!-- 图片预览对话框 -->
-    <el-dialog v-model="imagePreviewVisible" title="图片预览" width="70%">
-      <div class="image-preview-container">
-        <img v-if="previewImageUrl" :src="previewImageUrl" :alt="previewFile?.file_name" />
-      </div>
-      <template #footer>
-        <el-button @click="downloadCurrentImage">下载</el-button>
-        <el-button type="primary" @click="imagePreviewVisible = false">关闭</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -141,11 +118,8 @@ import {
   ChatDotRound, 
   DocumentCopy, 
   Download, 
-  View, 
-  Picture, 
   Document, 
-  Loading, 
-  WarningFilled,
+  Loading,
   Paperclip
 } from '@element-plus/icons-vue';
 
@@ -155,11 +129,8 @@ export default {
     ChatDotRound,
     DocumentCopy,
     Download,
-    View,
-    Picture,
     Document,
     Loading,
-    WarningFilled,
     Paperclip
   },
   props: {
@@ -168,29 +139,21 @@ export default {
       required: true
     }
   },
-  emits: ['message-sent', 'file-uploaded'],
   data() {
     return {
-      messages: [],
-      inputText: '',
-      sending: false,
-      isAtBottom: true,
-      newMessageCount: 0,
-      messageIdCounter: 0,
-      currentUser: null,
-      clientId: null, // 唯一的客户端标识符
-      
-      // 文件预览
-      imagePreviewVisible: false,
-      previewImageUrl: '',
-      previewFile: null
+      messages: [], // 聊天消息列表
+      messageInput: '', // 输入框内容
+      isSending: false, // 是否正在发送
+      isAtBottom: true, // 是否在底部
+      newMessageCount: 0, // 新消息数量
+      currentUserAgent: navigator.userAgent // 当前用户标识
     };
   },
   computed: {
-    showNewMessageTip() {
+    hasNewMessages() {
       return !this.isAtBottom && this.newMessageCount > 0;
     },
-    uploadUrl() {
+    fileUploadUrl() {
       return '/api/clipboard/file';
     },
     uploadHeaders() {
@@ -200,292 +163,246 @@ export default {
     }
   },
   mounted() {
-    this.initCurrentUser();
-    this.initWebSocketListeners();
-    this.loadInitialMessages();
-    this.scrollToBottom();
+    this.initializeChat();
+    this.setupWebSocketListener();
   },
   beforeUnmount() {
-    this.removeWebSocketListeners();
+    this.removeWebSocketListener();
   },
   methods: {
-    // 初始化WebSocket监听器
-    initWebSocketListeners() {
-      // 监听自定义事件
-      window.addEventListener('clipboard-websocket-update', this.handleWebSocketMessage);
-      window.addEventListener('clipboard-websocket-delete', this.handleWebSocketDelete);
+    // 初始化聊天框
+    async initializeChat() {
+      console.log('[CHAT] 初始化聊天框');
+      await this.loadRecentMessages();
+      this.scrollToBottom();
     },
-    
+
+    // 加载最近5条消息
+    async loadRecentMessages() {
+      try {
+        console.log('[CHAT] 加载最近5条消息');
+        const response = await fetch('/api/clipboard?page=1&size=5', {
+          headers: {
+            'X-API-Key': this.apiKey
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('加载消息失败');
+        }
+
+        const result = await response.json();
+        if (result.success && result.data) {
+          // 加载历史消息并按时间排序（最新的在后面）
+          this.messages = result.data
+            .map(item => ({
+              ...item,
+              type: item.content ? 'text' : 'file'
+            }))
+            .sort((a, b) => {
+              // 按created_at时间排序
+              const timeA = new Date(a.created_at).getTime();
+              const timeB = new Date(b.created_at).getTime();
+              return timeA - timeB;
+            });
+          console.log('[CHAT] 加载了', this.messages.length, '条历史消息，已按时间排序');
+        }
+      } catch (error) {
+        console.error('[CHAT] 加载历史消息失败:', error);
+        this.$message.error('加载历史消息失败');
+      }
+    },
+
+    // 设置WebSocket监听器
+    setupWebSocketListener() {
+      console.log('[CHAT] 设置WebSocket监听器');
+      console.log('[CHAT] window对象:', typeof window);
+      console.log('[CHAT] addEventListener方法:', typeof window.addEventListener);
+      
+      // 测试事件监听器是否正常工作
+      const testHandler = (event) => {
+        console.log('[CHAT] 收到测试事件:', event.detail);
+      };
+      window.addEventListener('test-event', testHandler);
+      
+      // 立即触发一个测试事件来验证机制是否工作
+      setTimeout(() => {
+        console.log('[CHAT] 发送测试事件');
+        window.dispatchEvent(new CustomEvent('test-event', { detail: 'test data' }));
+      }, 1000);
+      
+      // 绑定事件监听器 - 确保this上下文正确
+      this._boundHandleWebSocketMessage = this.handleWebSocketMessage.bind(this);
+      this._boundHandleWebSocketDelete = this.handleWebSocketDelete.bind(this);
+      
+      window.addEventListener('clipboard-websocket-update', this._boundHandleWebSocketMessage);
+      window.addEventListener('clipboard-websocket-delete', this._boundHandleWebSocketDelete);
+      
+      console.log('[CHAT] 事件监听器已绑定，函数类型:', typeof this._boundHandleWebSocketMessage);
+    },
+
     // 移除WebSocket监听器
-    removeWebSocketListeners() {
-      window.removeEventListener('clipboard-websocket-update', this.handleWebSocketMessage);
-      window.removeEventListener('clipboard-websocket-delete', this.handleWebSocketDelete);
+    removeWebSocketListener() {
+      console.log('[CHAT] 移除WebSocket监听器');
+      if (this._boundHandleWebSocketMessage) {
+        window.removeEventListener('clipboard-websocket-update', this._boundHandleWebSocketMessage);
+      }
+      if (this._boundHandleWebSocketDelete) {
+        window.removeEventListener('clipboard-websocket-delete', this._boundHandleWebSocketDelete);
+      }
     },
-    
+
     // 处理WebSocket消息
     handleWebSocketMessage(event) {
-      const data = event.detail;
-      
-      // 简单检查是否已经存在（避免重复）
-      if (this.messages.find(m => m.id === data.id)) {
+      const messageData = event.detail;
+      console.log('[CHAT] *** 成功收到WebSocket消息! ***', messageData);
+      console.log('[CHAT] 事件类型:', event.type);
+      console.log('[CHAT] 事件详情:', event.detail);
+      console.log('[CHAT] 当前消息数量:', this.messages.length);
+
+      // 检查是否已经存在这条消息
+      const existingMessage = this.messages.find(msg => msg.id === messageData.id);
+      if (existingMessage) {
+        console.log('[CHAT] 消息已存在，跳过:', messageData.id);
         return;
       }
+
+      // 添加新消息
+      const newMessage = {
+        ...messageData,
+        type: messageData.content ? 'text' : 'file'
+      };
+
+      // 按时间顺序插入消息
+      const messageTime = new Date(newMessage.created_at).getTime();
+      let insertIndex = this.messages.length;
       
-      // 添加消息（包括自己发送的）
-      this.addMessage(data);
+      // 找到正确的插入位置
+      for (let i = this.messages.length - 1; i >= 0; i--) {
+        const existingTime = new Date(this.messages[i].created_at).getTime();
+        if (existingTime <= messageTime) {
+          insertIndex = i + 1;
+          break;
+        }
+        insertIndex = i;
+      }
       
-      // 滚动到底部显示新消息
+      this.messages.splice(insertIndex, 0, newMessage);
+      console.log('[CHAT] 添加新消息到位置', insertIndex, ':', newMessage);
+
+      // 处理滚动
       if (this.isAtBottom) {
         this.$nextTick(() => {
           this.scrollToBottom();
         });
       } else {
-        // 如果不在底部，显示新消息提示
         this.newMessageCount++;
       }
     },
-    
+
     // 处理WebSocket删除消息
     handleWebSocketDelete(event) {
-      const data = event.detail;
+      const { id } = event.detail;
+      console.log('[CHAT] 删除消息:', id);
       
-      if (data && data.id) {
-        // 从聊天记录中移除对应消息
-        const index = this.messages.findIndex(msg => msg.id === data.id);
-        if (index > -1) {
-          this.messages.splice(index, 1);
-        }
+      const index = this.messages.findIndex(msg => msg.id === id);
+      if (index !== -1) {
+        this.messages.splice(index, 1);
       }
     },
-    
-    // 初始化当前用户信息
-    initCurrentUser() {
-      // 生成唯一的客户端ID
-      this.clientId = this.generateClientId();
-      
-      this.currentUser = {
-        ip: this.getClientIP(),
-        userAgent: navigator.userAgent,
-        clientId: this.clientId
-      };
-      
-      // 存储到localStorage，这样可以在多个标签页中识别同一客户端
-      localStorage.setItem('chatbox_client_id', this.clientId);
-    },
-    
-    // 生成客户端ID
-    generateClientId() {
-      // 先检查localStorage中是否已有
-      const existingId = localStorage.getItem('chatbox_client_id');
-      if (existingId) {
-        return existingId;
-      }
-      
-      // 生成新的ID
-      return 'client_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    },
-    
-    // 加载初始消息
-    async loadInitialMessages() {
-      try {
-        const response = await fetch('/api/clipboard/history?page=1&size=20', {
-          headers: {
-            'X-API-Key': this.apiKey
-          }
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          const items = result.data?.items || result.data || [];
-          
-          // 将历史消息添加到聊天框（最近的消息在后面）
-          for (const item of items.reverse()) {
-            this.addHistoryMessage(item); // 使用专门的历史消息添加方法
-          }
-        }
-      } catch (error) {
-        console.error('加载历史消息失败:', error);
-      }
-    },
-    
-    // 添加历史消息（不会触发WebSocket过滤）
-    addHistoryMessage(message) {
-      // 避免重复添加
-      if (this.messages.find(m => m.id === message.id)) {
+
+    // 发送文本消息
+    async sendTextMessage() {
+      if (!this.messageInput.trim() || this.isSending) {
         return;
       }
+
+      const content = this.messageInput.trim();
+      this.isSending = true;
       
-      const formattedMessage = {
-        ...message,
-        side: this.isOwnMessage(message) ? 'right' : 'left',
-        status: 'sent',
-        created_at: new Date(message.created_at)
-      };
-      
-      this.messages.push(formattedMessage);
-      
-      // 注意：历史消息不添加到sentMessageIds，因为它们不是当前客户端发送的
-    },
-    
-    // 获取客户端IP（模拟）
-    getClientIP() {
-      return '192.168.1.' + Math.floor(Math.random() * 255);
-    },
-    
-    // 发送文本消息
-    async sendMessage() {
-      if (!this.inputText.trim() || this.sending) return;
-      
-      const messageText = this.inputText.trim();
-      
-      // 显示发送中状态
-      this.sending = true;
-      this.inputText = '';
-      
+      // 先保存输入内容（用于失败恢复）
+      const originalInput = this.messageInput;
+      this.messageInput = '';
+
       try {
+        console.log('[CHAT] 发送文本消息:', content);
         const response = await fetch('/api/clipboard/text', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-API-Key': this.apiKey
           },
-          body: JSON.stringify({ content: messageText })
+          body: JSON.stringify({ content })
         });
-        
+
         if (!response.ok) {
           throw new Error('发送失败');
         }
-        
+
         const result = await response.json();
+        console.log('[CHAT] 消息发送成功，等待WebSocket广播:', result);
         
-        // 不在这里显示消息！等待WebSocket广播
-        // 服务器会向所有客户端（包括当前客户端）广播消息
-        
-        this.$emit('message-sent', result);
-        // 不显示成功提示，避免干扰
-        
+        // 消息发送成功，等待WebSocket广播
+        // 如果5秒内没收到广播，提示用户刷新页面
+        setTimeout(() => {
+          const hasMessage = this.messages.find(msg => msg.id === result.id);
+          if (!hasMessage) {
+            console.warn('[CHAT] 5秒内未收到WebSocket广播，可能需要刷新页面');
+            this.$message.warning('消息发送成功，但未能及时显示，请刷新页面查看');
+          }
+        }, 5000);
+
       } catch (error) {
-        console.error('发送消息失败:', error);
+        console.error('[CHAT] 发送消息失败:', error);
+        this.$message.error('发送失败: ' + error.message);
         
-        // 恢复输入内容，让用户可以重试
-        this.inputText = messageText;
-        this.$message.error('消息发送失败: ' + error.message);
+        // 发送失败，恢复输入内容
+        this.messageInput = originalInput;
       } finally {
-        this.sending = false;
+        this.isSending = false;
       }
     },
-    
+
     // 处理文件上传成功
-    handleFileSuccess(result, file) {
-      // 不在这里显示消息！等待WebSocket广播
-      // 服务器会向所有客户端（包括当前客户端）广播消息
-      
-      this.$emit('file-uploaded', result);
-      // 不显示成功提示，避免干扰
+    handleFileUploadSuccess(result) {
+      console.log('[CHAT] 文件上传成功:', result);
+      // 文件上传成功，等待WebSocket广播
+      // 不在这里立即添加消息，等待WebSocket事件
     },
-    
+
     // 处理文件上传失败
-    handleFileError(error, file) {
+    handleFileUploadError(error) {
+      console.error('[CHAT] 文件上传失败:', error);
       this.$message.error('文件上传失败');
     },
-    
-    // 从外部添加消息（WebSocket等）
-    addMessage(message) {
-      // 避免重复添加（如果已经有相同ID的消息）
-      if (this.messages.find(m => m.id === message.id)) {
-        return;
-      }
-      
-      const formattedMessage = {
-        ...message,
-        side: this.isOwnMessage(message) ? 'right' : 'left',
-        status: 'sent',
-        created_at: new Date(message.created_at)
-      };
-      
-      this.messages.push(formattedMessage);
-      
-      // 如果不在底部，增加新消息计数
-      if (!this.isAtBottom) {
-        this.newMessageCount++;
-      } else {
-        this.scrollToBottom();
-      }
-    },
-    
-    // 判断是否是自己的消息 (用于显示样式)
-    isOwnMessage(message) {
-      // 用于UI显示的判断，基于user agent匹配
-      return message.user_agent === this.currentUser.userAgent;
-    },
-    
-    // 清空聊天
-    clearChat() {
-      this.messages = [];
-      this.newMessageCount = 0;
-    },
-    
+
     // 处理键盘事件
-    handleKeydown(event) {
+    handleKeyPress(event) {
       if (event.ctrlKey && event.key === 'Enter') {
         event.preventDefault();
-        this.sendMessage();
+        this.sendTextMessage();
       }
     },
-    
-    // 处理粘贴
-    async handlePaste(event) {
-      const items = (event.clipboardData || window.clipboardData).items;
-      
-      for (let item of items) {
-        if (item.kind === 'file') {
-          const file = item.getAsFile();
-          if (file) {
-            // 直接上传文件，等待WebSocket广播结果
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            try {
-              const response = await fetch('/api/clipboard/file', {
-                method: 'POST',
-                headers: {
-                  'X-API-Key': this.apiKey
-                },
-                body: formData
-              });
-              
-              if (!response.ok) {
-                throw new Error('上传失败');
-              }
-              
-              const result = await response.json();
-              this.handleFileSuccess(result, file);
-              
-            } catch (error) {
-              this.handleFileError(error, file);
-            }
-          }
-        }
-      }
-    },
-    
-    // 滚动处理
+
+    // 处理滚动
     handleScroll() {
-      const container = this.$refs.messageList;
+      const container = this.$refs.messageContainer;
       if (!container) return;
-      
+
       const { scrollTop, scrollHeight, clientHeight } = container;
-      this.isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
       
-      if (this.isAtBottom) {
+      this.isAtBottom = isAtBottom;
+      
+      if (isAtBottom) {
         this.newMessageCount = 0;
       }
     },
-    
+
     // 滚动到底部
     scrollToBottom() {
       this.$nextTick(() => {
-        const container = this.$refs.messageList;
+        const container = this.$refs.messageContainer;
         if (container) {
           container.scrollTop = container.scrollHeight;
           this.isAtBottom = true;
@@ -493,7 +410,25 @@ export default {
         }
       });
     },
-    
+
+    // 清空消息
+    clearMessages() {
+      this.$confirm('确定要清空所有聊天记录吗？', '确认清空', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        this.messages = [];
+        this.newMessageCount = 0;
+        this.$message.success('聊天记录已清空');
+      }).catch(() => {});
+    },
+
+    // 判断是否是自己的消息
+    isOwnMessage(message) {
+      return message.user_agent === this.currentUserAgent;
+    },
+
     // 获取头像样式
     getAvatarStyle(message) {
       const ip = message.ip_address || 'unknown';
@@ -504,40 +439,45 @@ export default {
       }
       const hue = Math.abs(hash) % 360;
       return {
-        background: `hsl(${hue}, 70%, 55%)`,
-        boxShadow: `0 2px 8px hsl(${hue}, 70%, 35%, 0.3)`
+        backgroundColor: `hsl(${hue}, 65%, 55%)`,
+        color: '#fff'
       };
     },
-    
-    // 获取头像文字
+
+    // 获取头像文本
     getAvatarText(message) {
       if (!message.ip_address) return '?';
       const parts = message.ip_address.split('.');
       return parts[parts.length - 1] || '?';
     },
-    
+
     // 格式化时间
-    formatTime(date) {
-      const d = new Date(date);
-      return d.toLocaleTimeString('zh-CN', { 
-        hour: '2-digit', 
+    formatTime(dateString) {
+      if (!dateString) return '';
+      
+      // 如果是服务器格式化的时间字符串
+      if (typeof dateString === 'string' && dateString.includes('/')) {
+        const parts = dateString.split(' ');
+        return parts.length > 1 ? parts[1] : dateString;
+      }
+      
+      // 否则格式化Date对象
+      const date = new Date(dateString);
+      return date.toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
         minute: '2-digit',
         second: '2-digit'
       });
     },
-    
+
     // 格式化文件大小
-    formatSize(size) {
-      if (!size) return '0B';
-      const units = ['B', 'KB', 'MB', 'GB'];
-      let i = 0;
-      while (size >= 1024 && i < units.length - 1) {
-        size /= 1024;
-        i++;
-      }
-      return size.toFixed(i === 0 ? 0 : 1) + units[i];
+    formatFileSize(bytes) {
+      if (!bytes) return '0 B';
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(1024));
+      return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
     },
-    
+
     // 复制文本
     async copyText(text) {
       try {
@@ -548,65 +488,20 @@ export default {
         this.$message.error('复制失败');
       }
     },
-    
-    // 判断是否是图片
-    isImage(message) {
-      return message.mime_type && message.mime_type.startsWith('image/');
-    },
-    
-    // 判断是否是文本文件
-    isTextFile(message) {
-      return message.mime_type && (
-        message.mime_type.startsWith('text/') ||
-        message.mime_type === 'application/json' ||
-        message.file_name?.match(/\.(txt|md|json|xml|csv|log)$/i)
-      );
-    },
-    
-    // 预览图片
-    async previewImage(message) {
-      try {
-        this.previewFile = message;
-        this.imagePreviewVisible = true;
-        
-        const response = await fetch(`/api/clipboard/file/${message.id}`, {
-          headers: {
-            'X-API-Key': this.apiKey
-          }
-        });
-        
-        const blob = await response.blob();
-        this.previewImageUrl = URL.createObjectURL(blob);
-        
-      } catch (error) {
-        console.error('预览失败:', error);
-        this.$message.error('图片预览失败');
-      }
-    },
-    
-    // 预览文本
-    previewText(message) {
-      this.$emit('preview-text', message);
-    },
-    
+
     // 下载文件
     downloadFile(message) {
       this.$emit('download-file', message);
-    },
-    
-    // 下载当前预览的图片
-    downloadCurrentImage() {
-      if (this.previewFile) {
-        this.downloadFile(this.previewFile);
-      }
     }
   }
 };
 </script>
 
 <style scoped>
-.chat-wrapper {
+.chat-container {
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .chat-card {
@@ -620,10 +515,9 @@ export default {
   display: flex;
   flex-direction: column;
   padding: 0;
-  overflow: hidden;
 }
 
-.card-header {
+.chat-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -635,166 +529,124 @@ export default {
   gap: 8px;
 }
 
-.message-list {
+.message-container {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
   position: relative;
+  background: #fafafa;
 }
 
-.empty {
-  text-align: center;
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
   color: #999;
-  padding: 60px 20px;
-}
-
-.empty .el-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.5;
+  gap: 16px;
 }
 
 .message-item {
-  display: flex;
   margin-bottom: 16px;
-  align-items: flex-start;
+}
+
+.message-wrapper {
+  display: flex;
   gap: 12px;
 }
 
-.message-item.right {
+.message-wrapper.own-message {
   flex-direction: row-reverse;
 }
 
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 600;
-  font-size: 14px;
+.message-avatar {
   flex-shrink: 0;
 }
 
-.message-content {
-  max-width: 70%;
+.avatar-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
 }
 
-.message-item.right .message-content {
-  align-items: flex-end;
+.message-content {
+  flex: 1;
+  max-width: 70%;
 }
 
-.message-meta {
+.own-message .message-content {
+  text-align: right;
+}
+
+.message-header {
   display: flex;
   gap: 8px;
-  align-items: center;
   margin-bottom: 4px;
   font-size: 12px;
   color: #666;
 }
 
-.message-item.right .message-meta {
-  flex-direction: row-reverse;
+.own-message .message-header {
+  justify-content: flex-end;
 }
 
-.type-tag {
+.message-type {
+  background: #e3f2fd;
+  color: #1976d2;
   padding: 2px 6px;
   border-radius: 10px;
   font-size: 11px;
-  font-weight: 500;
-}
-
-.type-tag.text {
-  background: #e3f2fd;
-  color: #1976d2;
-}
-
-.type-tag.file {
-  background: #e8f5e8;
-  color: #4caf50;
 }
 
 .message-bubble {
-  background: #f5f5f5;
-  border-radius: 18px;
-  padding: 12px 16px;
-  position: relative;
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  transition: all 0.2s;
 }
 
-.message-bubble:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.message-item.right .message-bubble {
+.own-message .message-bubble {
   background: #1976d2;
-  color: white;
+  color: #fff;
 }
 
-.message-bubble.sending {
-  opacity: 0.7;
-}
-
-.message-bubble.failed {
-  background: #ffebee;
-  border: 1px solid #f44336;
-}
-
-.text-content {
-  white-space: pre-wrap;
-  word-break: break-word;
-  cursor: pointer;
-  line-height: 1.4;
-}
-
-.file-content {
+.text-message {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.image-preview {
-  cursor: pointer;
-  border-radius: 8px;
-  overflow: hidden;
-  max-width: 200px;
+.text-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.4;
 }
 
-.image-preview img {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.image-placeholder {
+.file-message {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 20px;
-  background: #f9f9f9;
-  border: 2px dashed #ddd;
-  border-radius: 8px;
   gap: 8px;
 }
 
 .file-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .file-details {
-  display: flex;
-  flex-direction: column;
+  flex: 1;
 }
 
 .file-name {
   font-weight: 500;
+  margin-bottom: 2px;
 }
 
 .file-size {
@@ -802,49 +654,50 @@ export default {
   opacity: 0.7;
 }
 
-.message-actions {
+.file-actions {
   display: flex;
-  gap: 4px;
-  margin-top: 8px;
+  gap: 8px;
 }
 
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  font-size: 12px;
-  opacity: 0.7;
-}
-
-.status-indicator.error {
-  color: #f44336;
-}
-
-.new-message-tip {
+.new-message-indicator {
   position: absolute;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   background: #1976d2;
-  color: white;
+  color: #fff;
   padding: 8px 16px;
   border-radius: 20px;
   cursor: pointer;
   font-size: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  animation: bounce 0.5s ease-out;
+  animation: slideUp 0.3s ease-out;
 }
 
-@keyframes bounce {
-  0% { transform: translateX(-50%) translateY(20px); opacity: 0; }
-  100% { transform: translateX(-50%) translateY(0); opacity: 1; }
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .input-area {
   border-top: 1px solid #eee;
   padding: 16px;
-  background: white;
+  background: #fff;
+}
+
+.sending-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: #1976d2;
+  font-size: 14px;
 }
 
 .input-wrapper {
@@ -853,62 +706,31 @@ export default {
   align-items: flex-end;
 }
 
-.message-input {
+.input-wrapper :deep(.el-textarea) {
   flex: 1;
 }
 
-.input-actions {
+.input-buttons {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.image-preview-container {
-  text-align: center;
-  max-height: 70vh;
-  overflow: auto;
-}
-
-.image-preview-container img {
-  max-width: 100%;
-  max-height: 70vh;
-  border-radius: 8px;
-}
-
 /* 滚动条样式 */
-.message-list::-webkit-scrollbar {
+.message-container::-webkit-scrollbar {
   width: 6px;
 }
 
-.message-list::-webkit-scrollbar-track {
+.message-container::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.message-list::-webkit-scrollbar-thumb {
+.message-container::-webkit-scrollbar-thumb {
   background: rgba(0,0,0,0.1);
   border-radius: 3px;
 }
 
-.message-list::-webkit-scrollbar-thumb:hover {
+.message-container::-webkit-scrollbar-thumb:hover {
   background: rgba(0,0,0,0.2);
-}
-
-/* 暗色模式适配 */
-:global(.dark) .message-bubble {
-  background: #2d2d2d;
-  color: #e0e0e0;
-}
-
-:global(.dark) .message-item.right .message-bubble {
-  background: #1565c0;
-}
-
-:global(.dark) .message-meta {
-  color: #999;
-}
-
-:global(.dark) .input-area {
-  background: #1e1e1e;
-  border-top-color: #333;
 }
 </style>

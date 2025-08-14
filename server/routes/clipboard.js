@@ -234,9 +234,9 @@ router.post('/text', authenticateApiKey, (req, res) => {
           type: 'text'
         };
         
-        console.log('[SOCKET] 发送文本clipboard-update事件到房间user_' + req.user.id + ':', formattedRow);
-        // 只向对应的用户发送更新
-        io.to(`user_${req.user.id}`).emit('clipboard-update', formattedRow);
+        console.log('[SOCKET] 发送文本clipboard-update事件到所有客户端:', formattedRow);
+        // 广播给所有连接的客户端，实现真正的聊天室功能
+        io.emit('clipboard-update', formattedRow);
       });
     } else {
       console.warn('[SOCKET] Socket.IO实例不可用');
@@ -316,9 +316,9 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
           type: 'file'
         };
         
-        console.log('[SOCKET] 发送clipboard-update事件到房间user_' + req.user.id + ':', formattedRow);
-        // 只向对应的用户发送更新
-        io.to(`user_${req.user.id}`).emit('clipboard-update', formattedRow);
+        console.log('[SOCKET] 发送文件clipboard-update事件到所有客户端:', formattedRow);
+        // 广播给所有连接的客户端，实现真正的聊天室功能
+        io.emit('clipboard-update', formattedRow);
       });
     } else {
       console.warn('[SOCKET] Socket.IO实例不可用');
@@ -373,10 +373,11 @@ router.delete('/:id', authenticateApiKey, (req, res) => {
         return res.status(404).json({ success: false, error: '项目不存在' });
       }
       
-      // 通过 Socket.IO 通知客户端删除
+      // 通过 Socket.IO 通知所有客户端删除
       const io = req.app.get('io');
       if (io) {
-        io.to(`user_${req.user.id}`).emit('clipboard-delete', { id: parseInt(id) });
+        console.log('[SOCKET] 发送删除消息事件到所有客户端:', id);
+        io.emit('clipboard-delete', { id: parseInt(id) });
       }
       
       res.json({ success: true, message: '删除成功' });

@@ -2,30 +2,86 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import socket from '../services/socket.js';
 import store from '../store/index.js';
 
+// 消息去重管理器
+class MessageDeduplicator {
+  constructor(ttl = 300000) { // 5分钟TTL
+    this.processedMessages = new Map();
+    this.ttl = ttl;
+  }
+  
+  isProcessed(messageId) {
+    const now = Date.now();
+    const record = this.processedMessages.get(messageId);
+    
+    console.log('[DEDUPLICATOR] 检查消息ID:', messageId, {
+      hasRecord: !!record,
+      recordTimestamp: record?.timestamp,
+      currentTime: now,
+      timeDiff: record ? (now - record.timestamp) : 'N/A',
+      ttl: this.ttl,
+      isExpired: record ? (now - record.timestamp) >= this.ttl : 'N/A'
+    });
+    
+    if (record && (now - record.timestamp) < this.ttl) {
+      console.log('[DEDUPLICATOR] 消息已处理，跳过:', messageId);
+      return true;
+    }
+    
+    console.log('[DEDUPLICATOR] 标记消息为已处理:', messageId);
+    this.processedMessages.set(messageId, { timestamp: now });
+    this.cleanup(now);
+    return false;
+  }
+  
+  cleanup(now) {
+    for (const [id, record] of this.processedMessages.entries()) {
+      if ((now - record.timestamp) >= this.ttl) {
+        this.processedMessages.delete(id);
+      }
+    }
+  }
+}
+
 export function useSocket() {
   const isConnected = ref(false);
   const socketInstance = ref(null);
-  const processedMessageIds = new Set(); // 防止快速重复处理
+  const messageDeduplicator = new MessageDeduplicator();
 
   // 事件处理函数（定义在外部，避免重复创建）
   const handleClipboardUpdate = (data) => {
     try {
-      // 防重复处理
-      if (processedMessageIds.has(data.id)) {
+      console.log('[SOCKET_CLIENT] 收到clipboard-update消息:', data);
+      
+      // 防重复处理（带过期清理）
+      const isAlreadyProcessed = messageDeduplicator.isProcessed(data.id);
+      console.log('[SOCKET_CLIENT] 消息重复检查:', {
+        messageId: data.id,
+        isAlreadyProcessed: isAlreadyProcessed,
+        messageType: data.type,
+        content: data.content ? data.content.substring(0, 50) + '...' : data.file_name
+      });
+      
+      if (isAlreadyProcessed) {
         console.log('[SOCKET_CLIENT] 跳过重复消息:', data.id);
         return;
       }
-      processedMessageIds.add(data.id);
       
-      console.log('[SOCKET_CLIENT] 收到clipboard-update消息:', data);
+      console.log('[SOCKET_CLIENT] 处理新消息:', data.id);
       
-      // 只添加到store，让聊天框通过自定义事件接收
+      // 统一通过store管理状态，移除多重处理路径
       store.mutations.ADD_CLIPBOARD_ITEM(data);
       
-      // 通过自定义事件通知聊天框
-      window.dispatchEvent(new CustomEvent('clipboard-websocket-update', {
+      // 派发自定义事件给所有监听器（包括ChatBox）
+      console.log('[SOCKET_CLIENT] 派发自定义事件 clipboard-websocket-update', data);
+      console.log('[SOCKET_CLIENT] 当前window对象:', typeof window);
+      console.log('[SOCKET_CLIENT] CustomEvent支持:', typeof CustomEvent);
+      
+      const customEvent = new CustomEvent('clipboard-websocket-update', {
         detail: data
-      }));
+      });
+      console.log('[SOCKET_CLIENT] 创建的事件:', customEvent);
+      window.dispatchEvent(customEvent);
+      console.log('[SOCKET_CLIENT] 事件已派发');
       
       // 减少提示频率，避免过多干扰
       if (window.$message && data.type === 'text') {

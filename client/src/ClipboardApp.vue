@@ -41,9 +41,6 @@
             :page-size="store.state.pageSize"
             :total-items="store.state.totalItems"
             @update-clipboard-items="updateClipboardItems"
-            @add-text-content="handleAddTextContent"
-            @file-success="handleFileSuccess"
-            @file-error="handleFileError"
             @copy-to-clipboard="copyToClipboard"
             @download-file="downloadFile"
             @preview-text-file="previewTextFile"
@@ -287,8 +284,8 @@ export default defineComponent({
     // 加载初始数据
     async loadInitialData() {
       try {
-        // 获取剪贴板历史记录
-        await this.updateClipboardItems({ page: 1, size: 10 });
+        // 获取剪贴板历史记录（多加载一些用于聊天框显示）
+        await this.updateClipboardItems({ page: 1, size: 20 });
         
         // 如果是管理员，获取用户和访问日志
         if (store.state.isAdmin) {
@@ -549,6 +546,7 @@ export default defineComponent({
         window.$message.error(error.message || '文件上传失败');
       }
     },
+    
     
     // 复制到剪贴板
     copyToClipboard(content) {
