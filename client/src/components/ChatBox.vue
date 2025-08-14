@@ -171,9 +171,9 @@ export default {
           const timeB = new Date(b.created_at).getTime();
           return timeA - timeB;
         })
-        .slice(-50); // 只显示最近50条消息，避免界面卡顿
+        .slice(-5); // 只显示最近5条消息，保持简洁
         
-      console.log('[CHAT] 计算属性messages更新，消息数量:', chatMessages.length, '（显示最近50条）');
+      console.log('[CHAT] 计算属性messages更新，消息数量:', chatMessages.length, '（显示最近5条）');
       return chatMessages;
     },
     
