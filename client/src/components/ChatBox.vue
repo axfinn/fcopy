@@ -192,24 +192,41 @@ export default {
     }
   },
   mounted() {
-    this.initializeChat();
+    // 标记组件已完全mounted
+    this._isMounted = true;
+    
     this.setupWebSocketListener();
+    
+    // 延迟初始化，确保DOM完全渲染
+    this.$nextTick(() => {
+      setTimeout(() => {
+        this.initializeChat();
+      }, 100); // 100ms延迟确保DOM稳定
+    });
   },
   beforeUnmount() {
+    // 标记组件即将销毁，停止所有DOM操作
+    this._isMounted = false;
     this.removeWebSocketListener();
   },
   watch: {
     // 最简化的监听，避免Vue响应式错误
     clipboardItems: {
       handler() {
-        // 简单的响应，避免复杂的DOM操作
-        this.$nextTick(() => {
-          if (this.isAtBottom && this.$refs.messageContainer) {
-            this.$refs.messageContainer.scrollTop = this.$refs.messageContainer.scrollHeight;
-          }
-        });
+        // 只在组件完全mounted后才进行DOM操作
+        if (this._isMounted) {
+          this.$nextTick(() => {
+            if (this.isAtBottom && this.$refs.messageContainer) {
+              try {
+                this.$refs.messageContainer.scrollTop = this.$refs.messageContainer.scrollHeight;
+              } catch (e) {
+                // 忽略滚动错误
+              }
+            }
+          });
+        }
       },
-      immediate: true
+      immediate: false // 移除immediate，避免在DOM准备之前触发
     }
   },
   methods: {
@@ -263,8 +280,15 @@ export default {
       try {
         console.log('[CHAT] 发送文本消息:', content);
         
+        // 检查必要的依赖
+        if (!this.apiKey) {
+          throw new Error('API密钥缺失');
+        }
+        
         // 立即显示发送状态提示
-        this.$message.info('正在发送消息...', { duration: 1000 });
+        if (this.$message) {
+          this.$message.info('正在发送消息...', { duration: 1000 });
+        }
         
         const response = await fetch('/api/clipboard/text', {
           method: 'POST',
@@ -276,21 +300,26 @@ export default {
         });
 
         if (!response.ok) {
-          throw new Error('发送失败');
+          const errorText = await response.text();
+          throw new Error(`发送失败: ${response.status} ${errorText}`);
         }
 
         const result = await response.json();
         console.log('[CHAT] 消息发送成功，等待WebSocket广播更新界面:', result);
         
         // 发送成功提示
-        this.$message.success('消息发送成功！', { duration: 1000 });
-        
-        // 消息发送成功，Store会通过WebSocket自动更新，无需手动处理
-        // 移除定时器避免组件销毁时的引用错误
+        if (this.$message) {
+          this.$message.success('消息发送成功！', { duration: 1000 });
+        }
 
       } catch (error) {
         console.error('[CHAT] 发送消息失败:', error);
-        this.$message.error('发送失败: ' + error.message);
+        
+        // 安全地显示错误消息
+        const errorMessage = error && error.message ? error.message : '发送失败';
+        if (this.$message) {
+          this.$message.error('发送失败: ' + errorMessage);
+        }
         
         // 发送失败，恢复输入内容
         this.messageInput = originalInput;
@@ -322,6 +351,9 @@ export default {
 
     // 处理滚动 - 添加安全检查
     handleScroll() {
+      // 只在组件mounted后处理滚动
+      if (!this._isMounted) return;
+      
       try {
         const container = this.$refs.messageContainer;
         if (!container || !container.getBoundingClientRect) return;
@@ -345,10 +377,16 @@ export default {
 
     // 滚动到底部 - 添加安全检查避免Vue错误
     scrollToBottom() {
+      // 只在组件mounted且DOM稳定后执行
+      if (!this._isMounted) return;
+      
       try {
         this.$nextTick(() => {
           const container = this.$refs.messageContainer;
-          if (container && typeof container.scrollTop !== 'undefined' && typeof container.scrollHeight !== 'undefined') {
+          if (container && 
+              typeof container.scrollTop !== 'undefined' && 
+              typeof container.scrollHeight !== 'undefined' &&
+              container.getBoundingClientRect) {
             container.scrollTop = container.scrollHeight;
             this.isAtBottom = true;
             this.newMessageCount = 0;
