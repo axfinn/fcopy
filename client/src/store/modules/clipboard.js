@@ -41,12 +41,12 @@ export const clipboard = {
         // 检查是否已存在，避免重复添加
         const existingIndex = state.items.findIndex(existingItem => existingItem.id === formattedItem.id);
         if (existingIndex === -1) {
-          state.items.unshift(formattedItem);
-          
-          // 保持最多显示100条记录
-          if (state.items.length > 100) {
-            state.items.splice(100);
-          }
+            state.items.unshift(formattedItem);
+            
+            // 保持最多显示100条记录
+            if (state.items.length > 100) {
+              state.items.splice(100);
+            }
         } else {
           // 更新现有项目
           state.items.splice(existingIndex, 1, formattedItem);

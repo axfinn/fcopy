@@ -211,8 +211,6 @@ router.post('/text', authenticateApiKey, (req, res) => {
           return;
         }
         
-        console.log('[SOCKET] 查询到新插入文本记录:', row);
-        
         // 格式化时间
         const utcDate = new Date(row.created_at);
         // 转换为上海时区时间
@@ -233,10 +231,8 @@ router.post('/text', authenticateApiKey, (req, res) => {
           created_at: formattedTime,
           type: 'text'
         };
-        
-        console.log('[SOCKET] 发送文本clipboard-update事件到所有客户端:', formattedRow);
-        // 广播给所有连接的客户端，实现真正的聊天室功能
-        io.emit('clipboard-update', formattedRow);
+        console.log('[SOCKET] 发送文本clipboard-update事件到当前用户房间:', formattedRow.id);
+        emitToUser(io, req.user.id, 'clipboard-update', formattedRow);
       });
     } else {
       console.warn('[SOCKET] Socket.IO实例不可用');
@@ -282,7 +278,6 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
     const io = req.app.get('io');
     if (io) {
       console.log('[SOCKET] 准备发送文件上传通知, 用户ID:', req.user.id);
-      // 获取新插入的记录
       db.get('SELECT * FROM clipboard WHERE id = ?', [insertedId], (err, row) => {
         if (err) {
           console.error('[SOCKET] 查询新插入记录失败:', err);
@@ -292,8 +287,6 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
           console.error('[SOCKET] 未找到新插入的记录, ID:', insertedId);
           return;
         }
-        
-        console.log('[SOCKET] 查询到新插入记录:', row);
         
         // 格式化时间
         const utcDate = new Date(row.created_at);
@@ -315,10 +308,8 @@ router.post('/file', authenticateApiKey, upload.single('file'), (req, res) => {
           created_at: formattedTime,
           type: 'file'
         };
-        
-        console.log('[SOCKET] 发送文件clipboard-update事件到所有客户端:', formattedRow);
-        // 广播给所有连接的客户端，实现真正的聊天室功能
-        io.emit('clipboard-update', formattedRow);
+        console.log('[SOCKET] 发送文件clipboard-update事件到当前用户房间:', formattedRow.id);
+        emitToUser(io, req.user.id, 'clipboard-update', formattedRow);
       });
     } else {
       console.warn('[SOCKET] Socket.IO实例不可用');
@@ -376,8 +367,8 @@ router.delete('/:id', authenticateApiKey, (req, res) => {
       // 通过 Socket.IO 通知所有客户端删除
       const io = req.app.get('io');
       if (io) {
-        console.log('[SOCKET] 发送删除消息事件到所有客户端:', id);
-        io.emit('clipboard-delete', { id: parseInt(id) });
+        console.log('[SOCKET] 发送删除消息事件到当前用户房间:', id);
+        emitToUser(io, req.user.id, 'clipboard-delete', { id: parseInt(id) });
       }
       
       res.json({ success: true, message: '删除成功' });
@@ -511,5 +502,11 @@ router.get('/file/:id/meta', authenticateApiKey, (req, res) => {
     res.json({ success:true, exists:true, id, file_name: row.file_name, mime_type: row.mime_type, file_size: stat.size, fallbackUsed });
   });
 });
+
+// 通过 Socket.IO 仅广播给当前用户所有连接（多设备同步）
+function emitToUser(io, userId, event, payload) {
+  if (!io || !userId) return;
+  io.to(`user_${userId}`).emit(event, payload);
+}
 
 module.exports = router;

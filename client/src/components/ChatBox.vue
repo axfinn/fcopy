@@ -145,88 +145,52 @@ export default {
   },
   data() {
     return {
-      messageInput: '', // 输入框内容
-      isSending: false, // 是否正在发送
-      isAtBottom: true, // 是否在底部
-      newMessageCount: 0, // 新消息数量
-      currentUserAgent: navigator.userAgent // 当前用户标识
+      messageInput: '',
+      isSending: false,
+      isAtBottom: true,
+      newMessageCount: 0,
+      currentUserAgent: navigator.userAgent
     };
   },
   computed: {
-    // 从clipboardItems中提取聊天消息，完全依赖props
     messages() {
-      if (!Array.isArray(this.clipboardItems)) {
-        return [];
-      }
-      
-      // 过滤并格式化聊天消息（所有类型的消息都显示）
-      const chatMessages = this.clipboardItems
-        .map(item => ({
-          ...item,
-          type: item.content ? 'text' : 'file'
-        }))
-        .sort((a, b) => {
-          // 按created_at时间排序，最新的在底部
-          const timeA = new Date(a.created_at).getTime();
-          const timeB = new Date(b.created_at).getTime();
-          return timeA - timeB;
-        })
-        .slice(-5); // 只显示最近5条消息，保持简洁
-        
-      console.log('[CHAT] 计算属性messages更新，消息数量:', chatMessages.length, '（显示最近5条）');
-      return chatMessages;
+      if (!Array.isArray(this.clipboardItems)) return [];
+      // 只取当前 props 中的最近5条（已通过后端仅同步当前用户的数据）
+      const sorted = [...this.clipboardItems]
+        .sort((a,b)=> new Date(a.created_at)-new Date(b.created_at));
+      const lastFive = sorted.slice(-5);
+      return lastFive.map(it => ({
+        ...it,
+        type: it.content ? 'text' : 'file'
+      }));
     },
-    
-    hasNewMessages() {
-      return !this.isAtBottom && this.newMessageCount > 0;
-    },
-    
-    fileUploadUrl() {
-      return '/api/clipboard/file';
-    },
-    
-    uploadHeaders() {
-      return {
-        'X-API-Key': this.apiKey
-      };
-    }
+    hasNewMessages() { return !this.isAtBottom && this.newMessageCount > 0; },
+    fileUploadUrl() { return '/api/clipboard/file'; },
+    uploadHeaders() { return { 'X-API-Key': this.apiKey }; }
   },
   mounted() {
-    // 标记组件已完全mounted
     this._isMounted = true;
-    
-    this.setupWebSocketListener();
-    
-    // 延迟初始化，确保DOM完全渲染
+    // 移除多余的WebSocket删除事件监听（Store已处理删除）
     this.$nextTick(() => {
       setTimeout(() => {
         this.initializeChat();
-      }, 100); // 100ms延迟确保DOM稳定
+      }, 100);
     });
   },
   beforeUnmount() {
-    // 标记组件即将销毁，停止所有DOM操作
     this._isMounted = false;
-    this.removeWebSocketListener();
   },
   watch: {
-    // 最简化的监听，避免Vue响应式错误
     clipboardItems: {
       handler() {
-        // 只在组件完全mounted后才进行DOM操作
-        if (this._isMounted) {
-          this.$nextTick(() => {
-            if (this.isAtBottom && this.$refs.messageContainer) {
-              try {
-                this.$refs.messageContainer.scrollTop = this.$refs.messageContainer.scrollHeight;
-              } catch (e) {
-                // 忽略滚动错误
-              }
-            }
-          });
-        }
+        if (!this._isMounted) return;
+        this.$nextTick(()=>{
+          if (this.isAtBottom) this.scrollToBottom();
+          else this.newMessageCount = (this.newMessageCount||0) + 1;
+        });
       },
-      immediate: false // 移除immediate，避免在DOM准备之前触发
+      deep: false,
+      immediate: true
     }
   },
   methods: {
@@ -237,94 +201,21 @@ export default {
       this.scrollToBottom();
     },
 
-    // 设置WebSocket监听器 - 现在主要通过props获取数据，WebSocket只做删除监听
-    setupWebSocketListener() {
-      console.log('[CHAT] 设置WebSocket监听器（仅删除事件）');
-      
-      this._boundHandleWebSocketDelete = this.handleWebSocketDelete.bind(this);
-      window.addEventListener('clipboard-websocket-delete', this._boundHandleWebSocketDelete);
-    },
-
-    // 移除WebSocket监听器
-    removeWebSocketListener() {
-      console.log('[CHAT] 移除WebSocket监听器');
-      if (this._boundHandleWebSocketDelete) {
-        window.removeEventListener('clipboard-websocket-delete', this._boundHandleWebSocketDelete);
-      }
-    },
-
-    // 处理WebSocket删除消息
-    handleWebSocketDelete(event) {
-      const { id } = event.detail;
-      console.log('[CHAT] 删除消息:', id);
-      
-      const index = this.messages.findIndex(msg => msg.id === id);
-      if (index !== -1) {
-        this.messages.splice(index, 1);
-      }
-    },
-
-    // 发送文本消息
+    // 发送文本消息（修正Element Plus消息API调用方式）
     async sendTextMessage() {
-      if (!this.messageInput.trim() || this.isSending) {
-        return;
-      }
-
+      if (!this.messageInput.trim() || this.isSending) return;
       const content = this.messageInput.trim();
+      const original = this.messageInput;
+      this.messageInput='';
       this.isSending = true;
-      
-      // 先保存输入内容（用于失败恢复）
-      const originalInput = this.messageInput;
-      this.messageInput = '';
-
       try {
-        console.log('[CHAT] 发送文本消息:', content);
-        
-        // 检查必要的依赖
-        if (!this.apiKey) {
-          throw new Error('API密钥缺失');
-        }
-        
-        // 立即显示发送状态提示
-        if (this.$message) {
-          this.$message.info('正在发送消息...', { duration: 1000 });
-        }
-        
-        const response = await fetch('/api/clipboard/text', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': this.apiKey
-          },
-          body: JSON.stringify({ content })
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`发送失败: ${response.status} ${errorText}`);
-        }
-
-        const result = await response.json();
-        console.log('[CHAT] 消息发送成功，等待WebSocket广播更新界面:', result);
-        
-        // 发送成功提示
-        if (this.$message) {
-          this.$message.success('消息发送成功！', { duration: 1000 });
-        }
-
-      } catch (error) {
-        console.error('[CHAT] 发送消息失败:', error);
-        
-        // 安全地显示错误消息
-        const errorMessage = error && error.message ? error.message : '发送失败';
-        if (this.$message) {
-          this.$message.error('发送失败: ' + errorMessage);
-        }
-        
-        // 发送失败，恢复输入内容
-        this.messageInput = originalInput;
+        const resp = await fetch('/api/clipboard/text', { method:'POST', headers:{'Content-Type':'application/json','X-API-Key':this.apiKey}, body: JSON.stringify({ content }) });
+        if(!resp.ok) throw new Error(await resp.text());
+      } catch(e) {
+        this.$message && this.$message({ type:'error', message:'发送失败: '+(e.message||'') });
+        this.messageInput = original;
       } finally {
-        this.isSending = false;
+        this.isSending=false;
       }
     },
 
@@ -351,51 +242,29 @@ export default {
 
     // 处理滚动 - 添加安全检查
     handleScroll() {
-      // 只在组件mounted后处理滚动
       if (!this._isMounted) return;
-      
-      try {
-        const container = this.$refs.messageContainer;
-        if (!container || !container.getBoundingClientRect) return;
-
-        const { scrollTop, scrollHeight, clientHeight } = container;
-        if (typeof scrollTop !== 'number' || typeof scrollHeight !== 'number' || typeof clientHeight !== 'number') {
-          return;
-        }
-        
-        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
-        this.isAtBottom = isAtBottom;
-        
-        if (isAtBottom) {
-          this.newMessageCount = 0;
-        }
-      } catch (error) {
-        console.warn('[CHAT] 处理滚动事件时出错:', error);
-        // 忽略滚动错误，不影响核心功能
-      }
+      const container = this.$refs.messageContainer;
+      // 更稳健的 DOM 判断
+      if (!container || typeof container !== 'object') return;
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      if (typeof scrollTop !== 'number' || typeof scrollHeight !== 'number' || typeof clientHeight !== 'number') return;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+      this.isAtBottom = isAtBottom;
+      if (isAtBottom) this.newMessageCount = 0;
     },
 
     // 滚动到底部 - 添加安全检查避免Vue错误
     scrollToBottom() {
-      // 只在组件mounted且DOM稳定后执行
       if (!this._isMounted) return;
-      
-      try {
-        this.$nextTick(() => {
-          const container = this.$refs.messageContainer;
-          if (container && 
-              typeof container.scrollTop !== 'undefined' && 
-              typeof container.scrollHeight !== 'undefined' &&
-              container.getBoundingClientRect) {
-            container.scrollTop = container.scrollHeight;
-            this.isAtBottom = true;
-            this.newMessageCount = 0;
-          }
-        });
-      } catch (error) {
-        console.warn('[CHAT] 滚动到底部时出错:', error);
-        // 忽略滚动错误，不影响核心功能
-      }
+      this.$nextTick(() => {
+        const container = this.$refs.messageContainer;
+        if (!container || typeof container !== 'object') return;
+        if (typeof container.scrollTop === 'number' && typeof container.scrollHeight === 'number') {
+          container.scrollTop = container.scrollHeight;
+          this.isAtBottom = true;
+          this.newMessageCount = 0;
+        }
+      });
     },
 
     // 清空消息
