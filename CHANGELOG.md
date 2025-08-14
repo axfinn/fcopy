@@ -2,23 +2,43 @@
 
 ## [1.3.10] - 2025-08-14
 
-### 🎯 彻底修复聊天框无法接收消息问题
+### 🚨 紧急回退：修复Vue响应式系统崩溃
 
-- **根本问题发现**：数据流不一致导致的同步问题
-  - **剪切板能同步**：ClipboardHistoryImproved通过props接收store.state.items
-  - **聊天框收不到**：ChatBox试图监听WebSocket自定义事件，但事件链断裂
-  - **解决方案**：统一ChatBox与ClipboardHistoryImproved的数据获取方式
+- **紧急回退到稳定版本**：回退到c4fb3ea版本避免应用完全崩溃
+  - **Vue响应式错误**：修复过程中引入的Vue系统错误导致应用无法启动
+  - **错误类型**：`getBoundingClientRect is not a function`、`Cannot set properties of null`
+  - **回退范围**：保留最核心修复，移除有问题的架构变更
+  - **稳定性优先**：确保应用基本功能可用
 
-- **架构统一**：ChatBox改用props接收clipboardItems
-  - **添加clipboardItems prop**：与ClipboardHistoryImproved保持一致的数据流
-  - **watch监听器**：实时响应store数据变化，自动同步新消息
-  - **简化WebSocket监听**：只保留删除事件监听，新增消息通过props获取
-  - **优化初始化逻辑**：从props初始化消息，无需单独API调用
+- **保留关键修复**：回退后仍保持聊天框基本可用性
+  - **immediate: true**：确保ChatBox的watch监听器立即触发
+  - **props数据流**：ChatBox通过clipboardItems prop接收数据，与ClipboardHistoryImproved保持一致
+  - **WebSocket删除监听**：保留删除事件的实时同步功能
+  - **基础时间排序**：消息按时间正确排序显示
 
-- **数据流优化**：WebSocket → useSocket → store → props → ChatBox
-  - **统一更新机制**：所有组件都通过store状态变化获取新数据
-  - **时间排序保持**：新消息按时间戳正确插入到消息列表
-  - **滚动行为优化**：新消息到达时自动滚动或显示提示
+- **当前状态**：应用运行在稳定版本，聊天框可基本使用
+  - **数据获取**：ChatBox通过props接收store数据，确保与剪切板历史一致
+  - **新消息显示**：依赖store更新触发props变化，实现消息同步
+  - **删除同步**：通过WebSocket事件实现删除操作的实时同步
+  - **性能稳定**：避免了Vue响应式系统错误，确保应用正常运行
+
+### ~~🎯 原计划修复内容（已回退）~~
+
+- ~~**根本问题发现**：数据流不一致导致的同步问题~~
+  - ~~**剪切板能同步**：ClipboardHistoryImproved通过props接收store.state.items~~
+  - ~~**聊天框收不到**：ChatBox试图监听WebSocket自定义事件，但事件链断裂~~
+  - ~~**解决方案**：统一ChatBox与ClipboardHistoryImproved的数据获取方式~~
+
+- ~~**架构统一**：ChatBox改用props接收clipboardItems~~
+  - ~~**添加clipboardItems prop**：与ClipboardHistoryImproved保持一致的数据流~~
+  - ~~**watch监听器**：实时响应store数据变化，自动同步新消息~~
+  - ~~**简化WebSocket监听**：只保留删除事件监听，新增消息通过props获取~~
+  - ~~**优化初始化逻辑**：从props初始化消息，无需单独API调用~~
+
+- ~~**数据流优化**：WebSocket → useSocket → store → props → ChatBox~~
+  - ~~**统一更新机制**：所有组件都通过store状态变化获取新数据~~
+  - ~~**时间排序保持**：新消息按时间戳正确插入到消息列表~~
+  - ~~**滚动行为优化**：新消息到达时自动滚动或显示提示~~
 
 ### 修复聊天框关键问题
 
