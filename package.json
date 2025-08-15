@@ -1,6 +1,6 @@
 {
   "name": "fcopy",
-  "version": "1.2.16",
+  "version": "1.3.0",
   "description": "fcopy - A simple and secure clipboard sharing tool",
   "main": "server/server.js",
   "scripts": {

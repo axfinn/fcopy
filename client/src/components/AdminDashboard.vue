@@ -216,10 +216,11 @@
 </template>
 
 <script>
-import { reactive, onMounted } from 'vue';
+import { reactive, ref, onMounted } from 'vue';
 import { useAdminStore } from '../stores/adminStore';
 import { usePresenceStore } from '../stores/presenceStore';
 import { useAuthStore } from '../stores/authStore';
+import { ElMessage } from 'element-plus';
 
 export default {
   name: 'AdminDashboard',
@@ -228,64 +229,32 @@ export default {
     const presence = usePresenceStore();
     const auth = useAuthStore();
 
-    function truncatedText(text, maxLength = 100){
-      if (!text) return '';
-      return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-    }
-    function formatToShanghaiTime(dateString){
-      const date = new Date(dateString);
-      return new Intl.DateTimeFormat('zh-CN', { timeZone:'Asia/Shanghai', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false }).format(date);
-    }
+    const activeTab = ref('users');
+    const addUserDialogVisible = ref(false);
+    const editApiKeyDialogVisible = ref(false);
+    const newUser = reactive({ username:'', apiKey:'' });
+    const editingUser = reactive({ id:null, username:'', apiKey:'' });
 
-    async function refreshAllData(){
-      await Promise.all([
-        admin.loadUsers(auth.apiKey),
-        presence.load(auth.apiKey),
-        admin.loadLogs(auth.apiKey)
-      ]);
-    }
+    function truncatedText(text, maxLength = 100){ if (!text) return ''; return text.length > maxLength ? text.substring(0, maxLength) + '...' : text; }
+    function formatToShanghaiTime(dateString){ const date = new Date(dateString); return new Intl.DateTimeFormat('zh-CN', { timeZone:'Asia/Shanghai', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false }).format(date); }
 
-    function handleTabChange(tabName){
-      switch(tabName){
-        case 'users': if(!admin.users.length) admin.loadUsers(auth.apiKey); break;
-        case 'active-users': presence.load(auth.apiKey); break;
-        case 'access-logs': admin.loadLogs(auth.apiKey); break;
-      }
-    }
+    async function refreshAllData(){ await Promise.all([ admin.loadUsers(auth.apiKey), presence.load(auth.apiKey), admin.loadLogs(auth.apiKey) ]); }
 
+    function handleTabChange(tabName){ switch(tabName){ case 'users': if(!admin.users.length) admin.loadUsers(auth.apiKey); break; case 'active-users': presence.load(auth.apiKey); break; case 'access-logs': admin.loadLogs(auth.apiKey); break; } }
     function handlePageChange(page){ admin.logsPage = page; admin.loadLogs(auth.apiKey); }
 
-    // 对话框与表单 本地状态
-    const state = reactive({
-      activeTab: 'users',
-      addUserDialogVisible: false,
-      editApiKeyDialogVisible: false,
-      newUser: { username:'', apiKey:'' },
-      editingUser: { id:null, username:'', apiKey:'' }
-    });
+    function showAddUserDialog(){ newUser.username=''; newUser.apiKey=''; addUserDialogVisible.value=true; }
+    function showEditApiKeyDialog(user){ editingUser.id=user.id; editingUser.username=user.username; editingUser.apiKey=''; editApiKeyDialogVisible.value=true; }
 
-    async function showAddUserDialog(){ state.newUser={ username:'', apiKey:'' }; state.addUserDialogVisible=true; }
-    async function showEditApiKeyDialog(user){ state.editingUser={ id:user.id, username:user.username, apiKey:'' }; state.editApiKeyDialogVisible=true; }
+    async function handleAddUser(){ if(!newUser.username || !newUser.apiKey){ ElMessage.error('请输入用户名与 API 密钥'); return; } try { await admin.addUser({ username:newUser.username, apiKey:newUser.apiKey }, auth.apiKey); ElMessage.success('用户创建成功'); addUserDialogVisible.value=false; } catch(e){ ElMessage.error('创建失败'); console.error(e); } }
+    async function handleUpdateApiKey(){ if(!editingUser.apiKey){ ElMessage.error('请输入新密钥'); return; } try { await admin.updateApiKey(editingUser.id, editingUser.apiKey, auth.apiKey); ElMessage.success('密钥更新成功'); editApiKeyDialogVisible.value=false; } catch(e){ ElMessage.error('更新失败'); console.error(e); } }
+    async function deleteUser(userId){ try { await admin.deleteUser(userId, auth.apiKey); ElMessage.success('删除成功'); } catch(e){ ElMessage.error('删除失败'); console.error(e); } }
 
-    async function handleAddUser(){
-      try { await admin.addUser(state.newUser, auth.apiKey); state.addUserDialogVisible=false; } catch(e){ console.error(e); }
-    }
-    async function handleUpdateApiKey(){
-      try {
-        await admin.updateApiKey(state.editingUser.id, state.editingUser.apiKey, auth.apiKey);
-        state.editApiKeyDialogVisible=false;
-      } catch(e){ console.error(e); }
-    }
+    function copyToClipboard(text){ navigator.clipboard.writeText(text).then(()=>{ ElMessage.success('已复制'); }); }
 
-    async function deleteUser(userId){
-      try { await admin.deleteUser(userId, auth.apiKey); } catch(e){ console.error(e); }
-    }
+    onMounted(()=>{ handleTabChange(activeTab.value); });
 
-    function copyToClipboard(text){ navigator.clipboard.writeText(text).then(()=>{}); }
-
-    onMounted(()=>{ handleTabChange(state.activeTab); });
-
-    return { admin, presence, auth, truncatedText, formatToShanghaiTime, refreshAllData, handleTabChange, handlePageChange, ...state, showAddUserDialog, showEditApiKeyDialog, handleAddUser, handleUpdateApiKey, deleteUser, copyToClipboard };
+    return { admin, presence, auth, activeTab, addUserDialogVisible, editApiKeyDialogVisible, newUser, editingUser, truncatedText, formatToShanghaiTime, refreshAllData, handleTabChange, handlePageChange, showAddUserDialog, showEditApiKeyDialog, handleAddUser, handleUpdateApiKey, deleteUser, copyToClipboard };
   }
 };
 </script>

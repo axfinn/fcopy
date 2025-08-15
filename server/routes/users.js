@@ -49,7 +49,8 @@ router.get('/me', authenticateApiKey, (req, res) => {
 router.get('/', authenticateApiKey, requireAdmin, (req, res) => {
   const db = database.getInstance();
   
-  const sql = 'SELECT id, username, is_admin FROM users ORDER BY id';
+  // 返回 api_key 供管理员查看/复制/后续更新
+  const sql = 'SELECT id, username, is_admin, api_key FROM users ORDER BY id';
   db.all(sql, [], (err, rows) => {
     if (err) {
       return res.status(500).json({ success: false, message: '服务器内部错误', error: err.message });
