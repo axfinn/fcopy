@@ -9,7 +9,7 @@
       <div class="search-area">
         <div class="search-controls">
           <el-input
-            v-model="searchForm.keyword"
+            v-model="state.keyword"
             placeholder="搜索剪贴板内容..."
             clearable
             @clear="resetSearch"
@@ -25,7 +25,7 @@
           </el-input>
           
           <el-select 
-            v-model="searchForm.type" 
+            v-model="state.filterType" 
             placeholder="类型筛选" 
             clearable
             @change="handleSearch"
@@ -40,9 +40,9 @@
       </div>
 
       <!-- 移动端列表视图 -->
-      <div class="mobile-list" v-if="isMobile">
+      <div class="mobile-list" v-if="state.isMobile">
         <div 
-          v-for="item in displayData" 
+          v-for="item in items" 
           :key="item.id" 
           class="mobile-item"
         >
@@ -125,14 +125,14 @@
           </div>
         </div>
         
-        <div v-if="displayData.length === 0 && !loading" class="no-data">
+        <div v-if="items.length === 0 && !loading" class="no-data">
           暂无数据
         </div>
       </div>
 
       <!-- 桌面端表格视图 -->
       <el-table 
-        :data="displayData" 
+        :data="items" 
         style="width: 100%"
         v-loading="loading"
         element-loading-text="加载中..."
@@ -270,10 +270,10 @@
         <el-pagination
           @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
-          :current-page="pagination.currentPage"
+          :current-page="page"
           :page-sizes="[10, 20, 50, 100]"
-          :page-size="pagination.pageSize"
-          :total="pagination.total"
+          :page-size="size"
+          :total="total"
           layout="total, sizes, prev, pager, next, jumper"
           background
         >
@@ -283,7 +283,7 @@
     
     <!-- 图片预览对话框 -->
     <el-dialog
-      v-model="imagePreviewVisible"
+      v-model="state.imagePreviewVisible"
       title="图片预览"
       width="80%"
       class="image-preview-dialog"
@@ -291,14 +291,14 @@
     >
       <div class="image-preview-container">
         <img 
-          :src="imagePreviewUrl" 
-          :alt="previewFile?.file_name"
+          :src="state.imagePreviewUrl" 
+          :alt="state.previewFile?.file_name"
           class="image-preview-large"
         />
       </div>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="imagePreviewVisible = false">关闭</el-button>
+          <el-button @click="state.imagePreviewVisible = false">关闭</el-button>
         </span>
       </template>
     </el-dialog>
@@ -306,333 +306,53 @@
 </template>
 
 <script>
-import { formatDistanceToNow, parseISO } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
+import { reactive, onMounted, onBeforeUnmount, computed } from 'vue';
 import { Document, Search, ArrowDown } from '@element-plus/icons-vue';
-import api from '../services/api.js';
-
 export default {
   name: 'ClipboardHistoryImproved',
-  components: {
-    Document,
-    Search,
-    ArrowDown
-  },
+  components: { Document, Search, ArrowDown },
   props: {
     apiKey: String,
-    clipboardItems: Array
+    items: { type: Array, default: () => [] },
+    loading: Boolean,
+    page: Number,
+    size: Number,
+    total: Number,
+    search: String,
+    type: String
   },
-  emits: ['copy-to-clipboard', 'download-file', 'preview-text-file', 'preview-pdf-file', 'delete-item', 'preview-image'],
-  data() {
-    return {
-      loading: false,
-      tableData: [],
-      searchForm: {
-        keyword: '',
-        type: '' // 添加类型筛选
-      },
-      pagination: {
-        currentPage: 1,
-        pageSize: 10,
-        total: 0
-      },
-      isMobile: false, // 添加移动端检测
-      // 图片预览相关数据
-      imagePreviewVisible: false,
-      imagePreviewUrl: '',
-      previewFile: null
-    };
-  },
-  computed: {
-    displayData() {
-      // 始终显示tableData，它包含了合并后的数据
-      return this.tableData;
-    }
-  },
-  mounted() {
-    if (this.apiKey) {
-      api.setApiKey(this.apiKey);
-      this.fetchData();
-    }
-    // 检测是否为移动端
-    this.checkIsMobile();
-    // 监听窗口大小变化
-    window.addEventListener('resize', this.checkIsMobile);
-  },
-  beforeUnmount() {
-    // 移除事件监听器
-    window.removeEventListener('resize', this.checkIsMobile);
-  },
-  watch: {
-    apiKey(newVal) {
-      if (newVal) {
-        api.setApiKey(newVal);
-        this.resetSearch();
-      }
-    },
-    clipboardItems: {
-      handler(newVal) {
-        console.log('clipboardItems 更新:', newVal);
-        if (Array.isArray(newVal) && newVal.length > 0) {
-          if (newVal.length > 10) {
-            this.tableData = [...newVal];
-            return;
-          }
-
-          const currentIds = new Set(this.tableData.map(item => item.id));
-          const newItems = newVal.filter(item => !currentIds.has(item.id));
-
-          if (newItems.length > 0) {
-            this.tableData = [...newItems, ...this.tableData];
-
-            if (this.tableData.length > 100) {
-              this.tableData = this.tableData.slice(0, 100);
-            }
-
-            if (this.pagination.total < this.tableData.length) {
-              this.pagination.total = this.tableData.length;
-            }
-          } else {
-            newVal.forEach(updatedItem => {
-              const index = this.tableData.findIndex(item => item.id === updatedItem.id);
-              if (index !== -1) {
-                this.tableData.splice(index, 1, updatedItem);
-                const [movedItem] = this.tableData.splice(index, 1);
-                this.tableData.unshift(movedItem);
-              }
-            });
-          }
-        } else if (Array.isArray(newVal) && newVal.length === 0) {
-          this.tableData = [];
-        }
-      },
-      deep: true,
-      immediate: true
-    }
-  },
-  methods: {
-    // 检测是否为移动端
-    checkIsMobile() {
-      this.isMobile = window.innerWidth <= 768;
-    },
-    
-    // 获取数据
-    async fetchData() {
-      this.loading = true;
-      try {
-        const params = {
-          page: this.pagination.currentPage,
-          size: this.pagination.pageSize,
-          search: this.searchForm.keyword || undefined, // 只有在有搜索词时才传递参数
-          type: this.searchForm.type || undefined // 添加类型筛选参数
-        };
-
-        const response = await api.getClipboardHistory(params);
-        
-        this.tableData = response.data || [];
-        this.pagination.total = response.total || 0;
-        this.pagination.currentPage = response.page || 1;
-        this.pagination.pageSize = response.size || 10;
-      } catch (error) {
-        console.error('获取剪贴板历史失败:', error);
-        this.$message.error('获取剪贴板历史失败: ' + (error.message || '未知错误'));
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    // 搜索处理
-    handleSearch() {
-      this.pagination.currentPage = 1;
-      this.fetchData();
-    },
-
-    // 重置搜索
-    resetSearch() {
-      this.searchForm.keyword = '';
-      this.searchForm.type = ''; // 重置类型筛选
-      this.pagination.currentPage = 1;
-      this.fetchData();
-    },
-
-    // 分页大小改变
-    handleSizeChange(val) {
-      this.pagination.pageSize = val;
-      this.pagination.currentPage = 1;
-      this.fetchData();
-    },
-
-    // 当前页改变
-    handleCurrentChange(val) {
-      this.pagination.currentPage = val;
-      this.fetchData();
-    },
-
-    // 下载文件
-    async downloadFile(fileId, fileName) {
-      try {
-        // 使用 fetch API 下载文件，将 API 密钥放在请求头中
-        const response = await fetch(`/api/clipboard/file/${fileId}`, {
-          headers: {
-            'X-API-Key': this.apiKey
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`下载失败: ${response.status} ${response.statusText}`);
-        }
-
-        // 创建下载链接并触发下载
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      } catch (error) {
-        console.error('下载文件时出错:', error);
-        this.$message.error('下载文件失败: ' + error.message);
-      }
-    },
-    
-    // 复制文本到剪贴板
-    copyToClipboard(content) {
-      this.$emit('copy-to-clipboard', content);
-    },
-
-    // 删除项目
-    deleteItem(id) {
-      this.$emit('delete-item', id);
-    },
-
-    // 处理移动端删除项目
-    handleDeleteItem(id) {
-      this.$confirm('确认删除此项目?', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).then(() => {
-        this.deleteItem(id);
-      }).catch(() => {
-        // 用户取消删除
-      });
-    },
-
-    // 判断是否为图片
-    isImage(mimeType) {
-      return mimeType && mimeType.startsWith('image/');
-    },
-
-    // 判断是否为文本文件
-    isTextFile(mimeType) {
-      if (!mimeType) return false;
-      return mimeType.startsWith('text/') || 
-             mimeType === 'application/json' || 
-             mimeType === 'application/xml';
-    },
-
-    // 判断是否为PDF文件
-    isPdfFile(mimeType) {
-      if (!mimeType) return false;
-      return mimeType === 'application/pdf';
-    },
-
-    // 格式化文件大小
-    formatFileSize(size) {
-      if (!size && size !== 0) return '0 B';
-      if (size < 1024) {
-        return size + ' B';
-      } else if (size < 1024 * 1024) {
-        return (size / 1024).toFixed(2) + ' KB';
-      } else {
-        return (size / (1024 * 1024)).toFixed(2) + ' MB';
-      }
-    },
-
-    // 截断文本
-    truncateText(text, maxLength) {
-      if (!text) return '';
-      if (text.length <= maxLength) {
-        return text;
-      }
-      return text.substr(0, maxLength) + '...';
-    },
-
-    /**
-     * 格式化时间为上海时区
-     */
-    formatToShanghaiTime(dateString) {
-      // 时间已经在API层格式化，直接返回
-      return dateString || '';
-    },
-
-    // 下拉菜单命令处理
-    handleCommand(command, row) {
-      switch (command) {
-        case 'previewText':
-          this.previewTextFile(row);
-          break;
-        case 'previewPdf':
-          this.previewPdfFile(row);
-          break;
-        case 'previewImage':
-          this.previewImage(row);
-          break;
-        case 'delete':
-          this.$confirm('确认删除此项目?', '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning'
-          }).then(() => {
-            this.deleteItem(row.id);
-          }).catch(() => {
-            // 用户取消删除
-          });
-          break;
-      }
-    },
-
-
-    // 预览图片
-    async previewImage(item) {
-      try {
-        // 使用 fetch API 获取图片，将 API 密钥放在请求头中
-        const response = await fetch(`/api/clipboard/file/${item.id}`, {
-          headers: {
-            'X-API-Key': this.apiKey
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`获取图片失败: ${response.status} ${response.statusText}`);
-        }
-
-        // 创建对象URL用于预览
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        this.previewFile = item;
-        this.imagePreviewUrl = url;
-        this.imagePreviewVisible = true;
-      } catch (error) {
-        console.error('预览图片时出错:', error);
-        this.$message.error('预览图片失败: ' + error.message);
-      }
-    },
-    
-    // 关闭图片预览
-    handleImagePreviewClose() {
-      // 清理创建的对象URL
-      if (this.imagePreviewUrl) {
-        window.URL.revokeObjectURL(this.imagePreviewUrl);
-      }
-      this.imagePreviewVisible = false;
-      this.imagePreviewUrl = '';
-      this.previewFile = null;
-    }
+  emits: ['update:search','update:type','update:page','update:size','copy','delete','download','preview-text','preview-pdf','preview-image','refresh'],
+  setup(props, { emit }) {
+    const state = reactive({ keyword: props.search || '', filterType: props.type || '', imagePreviewVisible:false, imagePreviewUrl:'', previewFile:null, isMobile:false });
+    // 响应式映射 Pinia 传入的 props，避免直接解构丢失响应
+    const itemsRef = computed(()=> props.items);
+    const loadingRef = computed(()=> props.loading);
+    const pageRef = computed(()=> props.page);
+    const sizeRef = computed(()=> props.size);
+    const totalRef = computed(()=> props.total);
+    function checkIsMobile(){ state.isMobile = window.innerWidth <= 768; }
+    function formatFileSize(size){ if(!size&&size!==0) return '0 B'; if(size<1024) return size+' B'; if(size<1024*1024) return (size/1024).toFixed(2)+' KB'; return (size/1024/1024).toFixed(2)+' MB'; }
+    function truncateText(text,max){ if(!text) return ''; return text.length>max? text.slice(0,max)+'...':text; }
+    function isImage(mt){ return mt && mt.startsWith('image/'); }
+    function isTextFile(mt){ return mt && (mt.startsWith('text/') || mt==='application/json' || mt==='application/xml'); }
+    function isPdfFile(mt){ return mt === 'application/pdf'; }
+    function formatToShanghaiTime(ts){ return ts || ''; }
+    function handleSearch(){ emit('update:search', state.keyword); emit('update:type', state.filterType); emit('update:page', 1); emit('refresh'); }
+    function resetSearch(){ state.keyword=''; state.filterType=''; emit('update:search',''); emit('update:type',''); emit('update:page',1); emit('refresh'); }
+    function handleSizeChange(val){ emit('update:size', val); emit('update:page',1); emit('refresh'); }
+    function handleCurrentChange(val){ emit('update:page', val); emit('refresh'); }
+    function copyToClipboard(content){ emit('copy', content); }
+    function handleDeleteItem(id){ emit('delete', id); }
+    function downloadFile(id, name){ emit('download', { id, name }); }
+    function handleCommand(command,row){ switch(command){ case 'previewText': emit('preview-text', row); break; case 'previewPdf': emit('preview-pdf', row); break; case 'previewImage': emit('preview-image', row); break; case 'delete': emit('delete', row.id); break; } }
+    function previewImage(item){ emit('preview-image', item); }
+    function previewTextFile(item){ emit('preview-text', item); }
+    function previewPdfFile(item){ emit('preview-pdf', item); }
+    function handleImageError(){}
+    function handleImagePreviewClose(){ emit('preview-image', null); }
+    onMounted(()=>{ checkIsMobile(); window.addEventListener('resize', checkIsMobile); });
+    onBeforeUnmount(()=> window.removeEventListener('resize', checkIsMobile));
+    return { state, items: itemsRef, loading: loadingRef, page: pageRef, size: sizeRef, total: totalRef, formatFileSize, truncateText, isImage, isTextFile, isPdfFile, formatToShanghaiTime, handleSearch, resetSearch, handleSizeChange, handleCurrentChange, copyToClipboard, handleDeleteItem, downloadFile, handleCommand, previewImage, previewTextFile, previewPdfFile, handleImageError, handleImagePreviewClose };
   }
 };
 </script>
@@ -935,7 +655,7 @@ export default {
     line-height: 24px;
   }
   
-  .image-preview-dialog {
+  .image-preview_dialog {
     width: 95% !important;
   }
 }

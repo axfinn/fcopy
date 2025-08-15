@@ -5,16 +5,7 @@
       <el-tab-pane label="剪贴板" name="clipboard">
         <el-row :gutter="20">
           <el-col :span="24">
-            <ClipboardHistoryImproved 
-              :api-key="apiKey"
-              :clipboard-items="clipboardItems"
-              @update-clipboard-items="$emit('update-clipboard-items', $event)"
-              @copy-to-clipboard="$emit('copy-to-clipboard', $event)"
-              @download-file="(fileId, fileName, mimeType) => $emit('download-file', fileId, fileName, mimeType)"
-              @preview-text-file="$emit('preview-text-file', $event)"
-              @preview-pdf-file="$emit('preview-pdf-file', $event)"
-              @delete-item="$emit('delete-item', $event)"
-            />
+            <ClipboardList :api-key="auth.apiKey" :clipboard-items="clipboard.items" />
           </el-col>
         </el-row>
       </el-tab-pane>
@@ -23,44 +14,25 @@
       <el-tab-pane label="添加内容" name="add">
         <el-row :gutter="20">
           <el-col :span="24">
-            <AddContent 
-              :api-key="apiKey"
-              @text-added="$emit('add-text-content', $event)"
-              @file-success="$emit('file-success', $event)"
-              @file-error="$emit('file-error', $event)"
-            />
+            <AddContent :api-key="auth.apiKey" @text-added="handleTextAdded" @file-success="handleFileSuccess" />
           </el-col>
         </el-row>
       </el-tab-pane>
       
       <!-- 管理面板标签页 (仅管理员可见) -->
-      <el-tab-pane label="管理面板" name="admin" v-if="isAdmin">
+      <el-tab-pane label="管理面板" name="admin" v-if="auth.isAdmin">
         <el-row :gutter="20">
           <el-col :span="24">
-            <AdminDashboard 
-              :users="users"
-              :active-users="activeUsers"
-              :access-logs="accessLogs"
-              :current-page="currentPage"
-              :page-size="pageSize"
-              :total-items="totalItems"
-              @add-user="$emit('add-user', $event)"
-              @delete-user="$emit('delete-user', $event)"
-              @update-user-apikey="$emit('update-user-apikey', $event)"
-              @page-change="$emit('page-change', $event)"
-              @fetch-admin-data="$emit('fetch-admin-data')"
-            />
+            <AdminDashboard :users="admin.users" :active-users="presence.activeUsers" :access-logs="admin.accessLogs" />
           </el-col>
         </el-row>
       </el-tab-pane>
       
       <!-- 用户信息标签页 (普通用户可见) -->
-      <el-tab-pane label="我的连接" name="user-info" v-if="!isAdmin">
+      <el-tab-pane label="我的连接" name="user-info" v-if="!auth.isAdmin">
         <el-row :gutter="20">
           <el-col :span="24">
-            <MyConnections 
-              :active-users="activeUsers"
-            />
+            <MyConnections :active-users="presence.activeUsers" />
           </el-col>
         </el-row>
       </el-tab-pane>
@@ -69,88 +41,55 @@
 </template>
 
 <script>
-import ClipboardHistoryImproved from './ClipboardHistoryImproved.vue';
+import { defineComponent, ref, watch } from 'vue';
+import { useAuthStore } from '../stores/authStore';
+import { useClipboardStore } from '../stores/clipboardStore';
+import { usePresenceStore } from '../stores/presenceStore';
+import { useAdminStore } from '../stores/adminStore';
+import ClipboardList from '../features/clipboard/components/ClipboardList.vue';
 import AddContent from './AddContent.vue';
 import AdminDashboard from './AdminDashboard.vue';
 import MyConnections from './MyConnections.vue';
 
-export default {
+export default defineComponent({
   name: 'MainView',
   components: {
-    ClipboardHistoryImproved,
+    ClipboardList,
     AddContent,
     AdminDashboard,
     MyConnections
   },
-  props: {
-    apiKey: String,
-    clipboardItems: Array,
-    accessLogs: Array,
-    rateLimits: Object,
-    isAdmin: Boolean,
-    users: Array,
-    activeUsers: Array,
-    // 分页相关props
-    currentPage: {
-      type: Number,
-      default: 1
-    },
-    pageSize: {
-      type: Number,
-      default: 10
-    },
-    totalItems: {
-      type: Number,
-      default: 0
+  setup() {
+    const auth = useAuthStore();
+    const clipboard = useClipboardStore();
+    const presence = usePresenceStore();
+    const admin = useAdminStore();
+    const activeTab = ref('clipboard');
+
+    async function handleTabChange(name) {
+      if (name === 'clipboard') { if(!clipboard.items.length) clipboard.load(auth.apiKey); }
+      if (name === 'user-info') presence.load(auth.apiKey);
+      if (name === 'admin' && auth.isAdmin) {
+        if (!admin.users.length) admin.loadUsers(auth.apiKey);
+        if (!admin.accessLogs.length) admin.loadLogs(auth.apiKey);
+      }
     }
-  },
-  data() {
-    return {
-      activeTab: 'clipboard'
-    };
-  },
-  methods: {
-    handlePageChange(page) {
-      this.$emit('page-change', page);
-    },
-    
-    handleSizeChange(size) {
-      this.$emit('size-change', size);
-    },
-    
-    handleSearch(keyword) {
-      this.$emit('search', keyword);
-    },
-    
-    handleTabChange(name) {
-      this.$emit('tab-change', name);
-    },
-    
-    fetchActiveUsers() {
-      this.$emit('fetch-active-users');
-    },
-    
-    fetchAdminData() {
-      this.$emit('fetch-admin-data');
+
+    // 处理文本添加成功
+    function handleTextAdded() {
+      clipboard.load(auth.apiKey); // 重新加载剪贴板数据
     }
-  },
-  watch: {
-    // 当用户切换到"我的连接"标签页时，自动获取活跃用户数据
-    activeTab: {
-      handler(newValue) {
-        if (newValue === 'user-info' && this.activeUsers.length === 0) {
-          this.fetchActiveUsers();
-        }
-        // 当管理员切换到管理面板标签页时，获取相关数据
-        if (newValue === 'admin' && this.isAdmin) {
-          this.fetchAdminData();
-        }
-      },
-      immediate: true // 立即执行一次，确保初始加载时也能获取数据
+
+    // 处理文件上传成功
+    function handleFileSuccess() {
+      clipboard.load(auth.apiKey); // 重新加载剪贴板数据
     }
-  },
-  emits: ['page-change', 'size-change', 'search', 'delete-item', 'preview-text', 'preview-file', 'copy-to-clipboard', 'add-user', 'delete-user', 'update-user-apikey', 'tab-change', 'fetch-active-users', 'fetch-admin-data']
-};
+
+    watch(activeTab, (v) => handleTabChange(v), { immediate: true });
+
+    return { auth, clipboard, presence, admin, activeTab, handleTabChange, handleTextAdded, handleFileSuccess };
+  }
+});
 </script>
 
 <style scoped>

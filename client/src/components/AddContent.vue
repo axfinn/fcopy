@@ -153,14 +153,34 @@ export default {
     },
     
     // 添加文本内容
-    addTextContent() {
+    async addTextContent() {
       if (!this.textContent.trim()) {
         this.$message.warning('请输入文本内容');
         return;
       }
       
-      this.$emit('text-added', this.textContent);
-      this.textContent = ''; // 清空输入框
+      try {
+        const response = await fetch('/api/clipboard/text', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': this.apiKey
+          },
+          body: JSON.stringify({ content: this.textContent })
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          this.$emit('text-added', this.textContent);
+          this.$message.success('文本添加成功');
+          this.textContent = ''; // 清空输入框
+        } else {
+          throw new Error('添加失败');
+        }
+      } catch (error) {
+        console.error('添加文本失败:', error);
+        this.$message.error('文本添加失败: ' + error.message);
+      }
     }
   }
 };
