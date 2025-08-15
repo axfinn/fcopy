@@ -21,7 +21,7 @@
               </div>
             </template>
             
-            <el-table :data="users" style="width: 100%" empty-text="暂无用户数据" v-loading="loading.users">
+            <el-table :data="admin.users" style="width: 100%" empty-text="暂无用户数据" v-loading="admin.loadingUsers">
               <el-table-column prop="id" label="ID" width="80"></el-table-column>
               <el-table-column prop="username" label="用户名"></el-table-column>
               <el-table-column prop="is_admin" label="管理员" width="100">
@@ -80,7 +80,7 @@
               </div>
             </template>
             
-            <el-table :data="activeUsers" style="width: 100%" empty-text="暂无在线用户" v-loading="loading.activeUsers">
+            <el-table :data="presence.activeUsers" style="width: 100%" empty-text="暂无在线用户" v-loading="presence.loading">
               <el-table-column prop="id" label="用户ID" width="80"></el-table-column>
               <el-table-column prop="username" label="用户名"></el-table-column>
               <el-table-column prop="totalConnections" label="连接数" width="100"></el-table-column>
@@ -134,9 +134,9 @@
                 <div class="header-actions">
                   <el-pagination
                     @current-change="handlePageChange"
-                    :current-page="pagination.currentPage"
-                    :page-size="pagination.pageSize"
-                    :total="pagination.total"
+                    :current-page="admin.logsPage"
+                    :page-size="admin.logsSize"
+                    :total="admin.logsTotal"
                     layout="prev, pager, next, jumper"
                     background
                     small
@@ -145,7 +145,7 @@
               </div>
             </template>
             
-            <el-table :data="accessLogs" style="width: 100%" empty-text="暂无访问记录" v-loading="loading.accessLogs">
+            <el-table :data="admin.accessLogs" style="width: 100%" empty-text="暂无访问记录" v-loading="admin.loadingLogs">
               <el-table-column prop="ip_address" label="IP地址" width="150"></el-table-column>
               <el-table-column prop="request_path" label="请求路径"></el-table-column>
               <el-table-column prop="request_method" label="请求方法" width="100"></el-table-column>
@@ -164,9 +164,9 @@
             <div class="pagination-footer">
               <el-pagination
                 @current-change="handlePageChange"
-                :current-page="pagination.currentPage"
-                :page-size="pagination.pageSize"
-                :total="pagination.total"
+                :current-page="admin.logsPage"
+                :page-size="admin.logsSize"
+                :total="admin.logsTotal"
                 layout="prev, pager, next, jumper"
                 background
                 small
@@ -216,230 +216,76 @@
 </template>
 
 <script>
-import api from '../services/api.js';
+import { reactive, onMounted } from 'vue';
+import { useAdminStore } from '../stores/adminStore';
+import { usePresenceStore } from '../stores/presenceStore';
+import { useAuthStore } from '../stores/authStore';
 
 export default {
   name: 'AdminDashboard',
-  data() {
-    return {
-      activeTab: 'users',
-      loading: {
-        users: false,
-        activeUsers: false,
-        accessLogs: false
-      },
-      users: [],
-      activeUsers: [],
-      accessLogs: [],
-      pagination: {
-        currentPage: 1,
-        pageSize: 50,
-        total: 0
-      },
-      addUserDialogVisible: false,
-      editApiKeyDialogVisible: false,
-      newUser: {
-        username: '',
-        apiKey: ''
-      },
-      editingUser: {
-        id: null,
-        username: '',
-        apiKey: ''
-      }
-    };
-  },
-  mounted() {
-    this.loadDataForActiveTab();
-  },
-  methods: {
-    // 截断文本显示
-    truncatedText(text, maxLength = 100) {
+  setup(){
+    const admin = useAdminStore();
+    const presence = usePresenceStore();
+    const auth = useAuthStore();
+
+    function truncatedText(text, maxLength = 100){
       if (!text) return '';
       return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-    },
-    
-    // 格式化时间为上海时区
-    formatToShanghaiTime(dateString) {
-      const date = new Date(dateString);
-      // 使用Intl.DateTimeFormat格式化为上海时区时间
-      return new Intl.DateTimeFormat('zh-CN', {
-        timeZone: 'Asia/Shanghai',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      }).format(date);
-    },
-    
-    async refreshAllData() {
-      await this.loadUsers();
-      await this.loadActiveUsers();
-      await this.loadAccessLogs();
-    },
-    
-    handleTabChange(tabName) {
-      this.activeTab = tabName;
-      this.loadDataForActiveTab();
-    },
-    
-    loadDataForActiveTab() {
-      switch (this.activeTab) {
-        case 'users':
-          this.loadUsers();
-          break;
-        case 'active-users':
-          this.loadActiveUsers();
-          break;
-        case 'access-logs':
-          this.loadAccessLogs();
-          break;
-      }
-    },
-    
-    async loadUsers() {
-      this.loading.users = true;
-      try {
-        const response = await api.getUsers();
-        if (response.success) {
-          this.users = response.data;
-        } else {
-          this.$message.error(response.error || '获取用户列表失败');
-        }
-      } catch (error) {
-        console.error('获取用户列表失败:', error);
-        this.$message.error('获取用户列表失败');
-      } finally {
-        this.loading.users = false;
-      }
-    },
-    
-    async loadActiveUsers() {
-      this.loading.activeUsers = true;
-      try {
-        const response = await api.getActiveUsers();
-        if (response.success) {
-          this.activeUsers = response.data;
-        } else {
-          this.$message.error(response.error || '获取活跃用户失败');
-        }
-      } catch (error) {
-        console.error('获取活跃用户失败:', error);
-        this.$message.error('获取活跃用户失败');
-      } finally {
-        this.loading.activeUsers = false;
-      }
-    },
-    
-    async loadAccessLogs() {
-      this.loading.accessLogs = true;
-      try {
-        const response = await api.getAccessLogs({
-          page: this.pagination.currentPage,
-          size: this.pagination.pageSize
-        });
-        
-        if (response.success) {
-          this.accessLogs = response.data;
-          this.pagination.total = response.total;
-        } else {
-          this.$message.error(response.error || '获取访问日志失败');
-        }
-      } catch (error) {
-        console.error('获取访问日志失败:', error);
-        this.$message.error('获取访问日志失败');
-      } finally {
-        this.loading.accessLogs = false;
-      }
-    },
-    
-    handlePageChange(page) {
-      this.pagination.currentPage = page;
-      this.loadAccessLogs();
-    },
-    
-    showAddUserDialog() {
-      this.newUser = {
-        username: '',
-        apiKey: ''
-      };
-      this.addUserDialogVisible = true;
-    },
-    
-    showEditApiKeyDialog(user) {
-      this.editingUser = {
-        id: user.id,
-        username: user.username,
-        apiKey: ''
-      };
-      this.editApiKeyDialogVisible = true;
-    },
-    
-    async handleAddUser() {
-      try {
-        const response = await api.addUser(this.newUser);
-        if (response.success) {
-          this.$message.success('用户添加成功');
-          this.addUserDialogVisible = false;
-          this.loadUsers();
-        } else {
-          this.$message.error(response.error || '添加用户失败');
-        }
-      } catch (error) {
-        console.error('添加用户失败:', error);
-        this.$message.error('添加用户失败');
-      }
-    },
-    
-    async handleUpdateApiKey() {
-      try {
-        const response = await api.updateUserApiKey(this.editingUser.id, this.editingUser.apiKey);
-        if (response.success) {
-          this.$message.success('API密钥更新成功');
-          this.editApiKeyDialogVisible = false;
-          this.loadUsers();
-        } else {
-          this.$message.error(response.error || '更新API密钥失败');
-        }
-      } catch (error) {
-        console.error('更新API密钥失败:', error);
-        this.$message.error('更新API密钥失败');
-      }
-    },
-    
-    async deleteUser(userId) {
-      try {
-        await this.$confirm('确认删除该用户吗？', '提示', {
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          type: 'warning'
-        });
-        
-        const response = await api.deleteUser(userId);
-        if (response.success) {
-          this.$message.success('用户删除成功');
-          this.loadUsers();
-        } else {
-          this.$message.error(response.error || '删除用户失败');
-        }
-      } catch (error) {
-        if (error !== 'cancel') {
-          console.error('删除用户失败:', error);
-          this.$message.error('删除用户失败');
-        }
-      }
-    },
-    
-    copyToClipboard(text) {
-      navigator.clipboard.writeText(text).then(() => {
-        this.$message.success('复制成功');
-      }).catch(() => {
-        this.$message.error('复制失败');
-      });
     }
+    function formatToShanghaiTime(dateString){
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat('zh-CN', { timeZone:'Asia/Shanghai', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false }).format(date);
+    }
+
+    async function refreshAllData(){
+      await Promise.all([
+        admin.loadUsers(auth.apiKey),
+        presence.load(auth.apiKey),
+        admin.loadLogs(auth.apiKey)
+      ]);
+    }
+
+    function handleTabChange(tabName){
+      switch(tabName){
+        case 'users': if(!admin.users.length) admin.loadUsers(auth.apiKey); break;
+        case 'active-users': presence.load(auth.apiKey); break;
+        case 'access-logs': admin.loadLogs(auth.apiKey); break;
+      }
+    }
+
+    function handlePageChange(page){ admin.logsPage = page; admin.loadLogs(auth.apiKey); }
+
+    // 对话框与表单 本地状态
+    const state = reactive({
+      activeTab: 'users',
+      addUserDialogVisible: false,
+      editApiKeyDialogVisible: false,
+      newUser: { username:'', apiKey:'' },
+      editingUser: { id:null, username:'', apiKey:'' }
+    });
+
+    async function showAddUserDialog(){ state.newUser={ username:'', apiKey:'' }; state.addUserDialogVisible=true; }
+    async function showEditApiKeyDialog(user){ state.editingUser={ id:user.id, username:user.username, apiKey:'' }; state.editApiKeyDialogVisible=true; }
+
+    async function handleAddUser(){
+      try { await admin.addUser(state.newUser, auth.apiKey); state.addUserDialogVisible=false; } catch(e){ console.error(e); }
+    }
+    async function handleUpdateApiKey(){
+      try {
+        await admin.updateApiKey(state.editingUser.id, state.editingUser.apiKey, auth.apiKey);
+        state.editApiKeyDialogVisible=false;
+      } catch(e){ console.error(e); }
+    }
+
+    async function deleteUser(userId){
+      try { await admin.deleteUser(userId, auth.apiKey); } catch(e){ console.error(e); }
+    }
+
+    function copyToClipboard(text){ navigator.clipboard.writeText(text).then(()=>{}); }
+
+    onMounted(()=>{ handleTabChange(state.activeTab); });
+
+    return { admin, presence, auth, truncatedText, formatToShanghaiTime, refreshAllData, handleTabChange, handlePageChange, ...state, showAddUserDialog, showEditApiKeyDialog, handleAddUser, handleUpdateApiKey, deleteUser, copyToClipboard };
   }
 };
 </script>

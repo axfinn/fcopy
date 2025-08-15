@@ -1,5 +1,56 @@
 # 更新日志
 
+<!-- markdownlint-disable MD024 -->
+
+## [1.3.0] - 2025-08-15
+
+### 重构 / 架构
+
+- 前端全面迁移到 Pinia：新增 `authStore` / `clipboardStore` / `presenceStore` / `adminStore` / `uiStore`，移除 legacy `store/index.js`（标记待删除）。
+- 引入分层 API 模块：`apis/{auth,clipboard,user,log}Api.js` + 统一 `core/http/request` 封装（超时 + 错误包装）。
+- 抽象 WebSocket：`core/socket/socketService.js` 使用 mitt 事件总线统一派发 `clipboard:new` / `presence:update`。
+- 根组件 `ClipboardApp.vue` 重写：认证、Socket 绑定、初始加载、背景与上传、预览状态统一管理。
+- 剪贴板视图组件拆分：`ClipboardHistoryImproved` 纯展示 + 事件；新增桥接组件 `features/clipboard/ClipboardList.vue` 负责 Pinia 交互与预览。
+- Admin 管理面板迁移为组合式 + Pinia 数据源，移除冗余本地副本状态字段。
+
+### 组件 / UI
+
+- `AppHeader` 改为 `<script setup>` 并直接使用 `authStore`。
+- 添加图片 / 文本 / PDF 统一预览对话框逻辑（`usePreviewDialogs` 扩展支持图片 `openImage`）。
+- 下载逻辑由 `window.open` 改为 fetch Blob + a.click，避免新标签页与潜在鉴权暴露。
+- 移动端适配逻辑迁移到 `ClipboardHistoryImproved` 内部（resize 监听 + 响应式 props）。
+
+### 功能修复
+
+- 修复管理员界面因直接引用不存在的局部变量（`users` / `loading` 等）导致的空白页与 `Cannot read properties of undefined` 报错。
+- 修复剪贴板首次进入未加载：`ClipboardList` 挂载时若有 apiKey 且列表为空自动 `load()`。
+- 修复预览点击无效：实现 `handlePreviewText` / `handlePreviewPdf` / `handlePreviewImage` 事件链与对应对话框。
+- 统一实时追加逻辑：`clipboardStore.prepend` 去重并限制长度 100。
+
+### 代码清理
+
+- 移除：`services/api.js`、`services/socket.js`、`components/ClipboardHistory.vue`（保留空壳占位）。
+- 标记弃用：`composables/useClipboard.js`（Pinia 已替代），`useUploader.js` 以 `useUpload` 取代。
+- 新增维护文档：`client/src/stores/REMOVALS.md` / `maintenanceTODO.md` 用于跟踪遗留清理。
+
+### 开发者支持
+
+- 新增 `CLAUDE.md` 提供项目结构、构建与架构说明（供智能编码助手参考）。
+- 统一通知封装：`useNotify`（后续可接入全局错误拦截）。
+
+### 待办（未在本次完成）
+
+- `adminStore.updateApiKey` 具体实现（后端已提供 PUT `/api/users/:id/apikey`）。
+- 彻底物理删除已弃用的 legacy / deprecated 文件（确认引用后）。
+- Element Plus / 图标按需加载 与 代码拆包以改进首屏性能。
+- 全局错误处理（在 request 封装内集中分发 ElMessage）。
+- 预览对话框上移到根组件集中复用，减少重复实例化。
+- AddContent 重构：使用 Pinia 与 `useUpload` / `clipboardStore.addTextContent`。
+
+### 统计
+
+- 新增 / 修改多文件（stores、apis、composables、核心服务）以支撑新架构；删除 legacy 服务模块。
+
 ## [1.2.16] - 2025-08-09
 
 ### 修复
@@ -23,7 +74,7 @@
 
 ### 改进
 
-- 前端文件下载和预览功能改用fetch API实现，提升安全性
+- 改进前端文件下载和预览功能改用fetch API实现，提升安全性
 - 后端认证中间件支持从请求头或查询参数获取API密钥
 - 区分处理不同场景的API密钥传递方式，平衡安全性和功能性
 
@@ -80,6 +131,7 @@
 
 - 改进页脚组件：将使用说明整合到页脚，提升用户体验一致性
 - 优化组件结构：重构登录面板和页脚组件，提高代码可维护性
+- 更新文档：修正README和DOCKER文档中的镜像名称和版本信息
 
 ## [v1.2.9] - 2025-08-08
 

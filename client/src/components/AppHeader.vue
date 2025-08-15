@@ -6,8 +6,8 @@
       </div>
       <div class="header-right">
         
-        <div class="auth-info" v-if="isAuthenticated">
-          <span class="username" v-if="username">欢迎, {{ username }}!</span>
+        <div class="auth-info" v-if="auth.isAuthenticated">
+          <span class="username" v-if="auth.username">欢迎, {{ auth.username }}!</span>
           <el-button 
             type="danger" 
             size="small" 
@@ -23,34 +23,10 @@
   </el-header>
 </template>
 
-<script>
-import store from '../store';
-
-export default {
-  name: 'AppHeader',
-  props: {
-    isAuthenticated: {
-      type: Boolean,
-      required: true
-    },
-    username: {
-      type: String,
-      default: ''
-    }
-  },
-  emits: ['logout'],
-  data() {
-    return {
-    };
-  },
-  methods: {
-    logout() {
-      this.$emit('logout');
-    },
-    
-  },
-  
-}
+<script setup>
+import { useAuthStore } from '../stores/authStore';
+const auth = useAuthStore();
+function logout(){ auth.logout(); }
 </script>
 
 <style scoped>
